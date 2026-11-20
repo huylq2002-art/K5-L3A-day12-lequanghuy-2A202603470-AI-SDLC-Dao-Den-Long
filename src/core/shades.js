@@ -157,7 +157,7 @@ function approach(state, shade, target, lamps, step) {
   return best;
 }
 
-export function moveShades(state, lamps) {
+export function moveShades(state, lamps, wanderOnly = false) {
   const step = state.map.shadeSpeed * TICK_S;
   for (const shade of state.shades) {
     shade.skipContact = true;
@@ -192,7 +192,7 @@ export function moveShades(state, lamps) {
     }
     shade.skipContact = false;
     const threshold = shade.state === 'chase' ? T.shade_forget_radius : T.shade_detect_radius;
-    shade.state = !state.player.falling && distance <= threshold ? 'chase' : 'wander';
+    shade.state = !wanderOnly && !state.player.falling && distance <= threshold ? 'chase' : 'wander';
     if (shade.state === 'chase') {
       shade.pos = approach(state, shade, state.player.pos, lamps, step);
       continue;

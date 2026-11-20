@@ -1,5 +1,7 @@
 # Bằng chứng Phase 3
 
+Tái tạo các lệnh bên dưới từ tag `phase-3` với Test Contract v1.2.
+
 - `test.log` ghi kết quả `npm test`.
 - `browser.log` ghi kết quả chơi thử trong Chrome. Script kiểm tra luồng đến bình minh qua ba đêm, châm dầu, sức chứa và lưu bảng màu dễ phân biệt.
 - `oil-at-dawn.jsonl` ghi Đêm 1 từ scenario hai giây. L3 cạn dầu trước lần tương tác đầu. Mây châm dầu L1, nhặt đom đóm để thắp lại L3 và thắng ở tick 120. S2 hút L2 suốt hai giây và phát hai sự kiện theo cadence 60 tick.

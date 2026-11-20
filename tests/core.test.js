@@ -13,9 +13,9 @@ const near = (a, b, epsilon = 1e-7) => assert.ok(Math.abs(a - b) <= epsilon, `${
 const play = (state, count, input = {}) => Array.from({ length: count }, () => stepGame(state, input)).flat();
 const names = events => events.map(event => event.name);
 
-test('v1.2 tuning, night layouts and preserved TICKET-02 movement constants', () => {
+test('v1.3 metadata preserves v1.2 tuning and TICKET-02 movement constants', () => {
   const contract = JSON.parse(readFileSync(new URL('../game.contract.json', import.meta.url), 'utf8'));
-  assert.equal(contract.contract_version, '1.2');
+  assert.equal(contract.contract_version, '1.3');
   assert.equal(contract.team, '2A202603470-lequanghuy');
   assert.deepEqual(contract.tuning, T);
   assert.equal(T.tick_hz, 60);

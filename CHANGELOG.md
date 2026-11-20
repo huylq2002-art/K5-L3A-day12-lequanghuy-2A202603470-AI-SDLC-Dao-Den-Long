@@ -1,6 +1,13 @@
 # Changelog
 
-## 3.0.0 · Phase 3 — Đèn cạn dầu
+## v1.0.0 · Phase 4 — Bình minh
+
+- Test Contract v1.3 thêm CLI benchmark Chromium và soak 10 đêm. Tuning, luật chơi và replay headless tiếp tục dùng dữ liệu v1.2.
+- Bảng xếp hạng top 10 trên đĩa dùng chung giữa máy chủ cục bộ và CLI xuất điểm. Có lưu điểm sau khi thắng chiến dịch hoặc thua bất kỳ đêm nào.
+- Thêm đổi phím, phát hiện trùng, khôi phục mặc định, cảnh báo trực quan, giảm chuyển động và cỡ chữ tối thiểu 18 px cùng chế độ chữ lớn.
+- Gói ZIP v1.0.0 chứa bản production và máy chủ cục bộ, kèm kết quả benchmark, soak, log kiểm thử và Retro trong repo.
+
+## Phase 3 — Đèn cạn dầu
 
 ### Breaking Changes từ Test Contract v1.1 lên v1.2
 
@@ -14,14 +21,14 @@
 - Thêm thanh dầu 3D, nhấp nháy đèn yếu, vỏ giấy xẹp và rách khi tắt. HUD hiển thị sức chứa hiện tại và số đèn cần giữ sáng.
 - Thêm tùy chọn lưu bền vững **Bảng màu dễ phân biệt** với viền và mắt Bóng Mực màu xanh lam và cảnh báo trắng có biểu tượng.
 
-## 2.0.0 · Phase 2 — Ba hòn đảo
+## Phase 2 — Ba hòn đảo
 
 - Chuỗi Đảo Bến, Đảo Cau và Đảo Chuông với giới thiệu, kết quả từng đêm và tổng điểm Bình Minh.
 - Thêm Lướt, rơi và hồi sinh, cầu tre, bục nhảy, địa hình ba tầng, gió mạnh, Gió Lạc và Bùa Gió.
 - Chuẩn hóa thứ tự mô phỏng 60 Hz và nâng Test Contract lên v1.1 với pause, ba bản đồ và snapshot mở rộng.
 - Thêm menu, cài đặt lưu cục bộ, nhạc nền, hướng dẫn tìm đèn và HUD hồi chiêu.
 
-## 1.0.0 · Phase 1
+## Phase 1 — Đảo Bến
 
 - Đêm 1 – Đảo Bến với năm đèn lồng lớn, đom đóm, Mây và Bóng Mực.
 - Lõi mô phỏng theo seed chạy 60 tick/giây, dùng chung cho trình duyệt và CLI Test Contract v1.0.

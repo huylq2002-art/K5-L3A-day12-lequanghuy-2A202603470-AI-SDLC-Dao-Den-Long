@@ -100,7 +100,17 @@ export function createHud() {
   const timer = node('timer');
   const context = map.getContext('2d');
   const arrow = node('target-arrow');
-  const arrowIcon = arrow.firstElementChild;
+  const shadeArrow = node('shade-arrow');
+  const shadeCue = node('shade-cue');
+  const windCue = node('wind-cue');
+  const countdownCue = node('countdown-cue');
+  function placeArrow(element, marker) {
+    element.hidden = !marker;
+    if (!marker) return;
+    element.style.left = `${marker.x}%`;
+    element.style.top = `${marker.y}%`;
+    element.firstElementChild.style.transform = `rotate(${marker.angle}rad)`;
+  }
   let messageUntil = 0;
   let mapTick = -1;
   let oldFlames = -1;
@@ -113,7 +123,7 @@ export function createHud() {
   };
 
   return {
-    draw(state, timestamp, marker, accessible) {
+    draw(state, timestamp, marker, accessible, shadeMarker) {
       const { player } = state;
       const capacity = capacityFor(player.successfulLights);
       const lit = state.lanterns.filter(lamp => lamp.lit).length;
@@ -127,6 +137,10 @@ export function createHud() {
       text(score, state.score);
       text(clock, formatTime(state.timeLeft));
       timer.classList.toggle('urgent', state.timeLeft <= 30);
+      shadeCue.hidden = !shadeMarker;
+      windCue.hidden = !state.wind.warning;
+      countdownCue.hidden = state.timeLeft <= 0 || state.timeLeft > 10;
+      if (!countdownCue.hidden) text(countdownCue, `Bình minh sau ${Math.ceil(state.timeLeft)} giây`);
       if (oldCapacity !== capacity) {
         moteIcons.forEach((icon, i) => { icon.hidden = i >= capacity; });
       }
@@ -151,12 +165,8 @@ export function createHud() {
         text(interactText, label);
       }
       if (timestamp >= messageUntil) text(announcement, '');
-      arrow.hidden = !marker;
-      if (marker) {
-        arrow.style.left = `${marker.x}%`;
-        arrow.style.top = `${marker.y}%`;
-        arrowIcon.style.transform = `rotate(${marker.angle}rad)`;
-      }
+      placeArrow(arrow, marker);
+      placeArrow(shadeArrow, shadeMarker);
       if (state.simTick !== mapTick && (state.simTick % 3 === 0 || state.state !== 'playing')) {
         mapTick = state.simTick;
         drawMap(map, context, state, accessible);

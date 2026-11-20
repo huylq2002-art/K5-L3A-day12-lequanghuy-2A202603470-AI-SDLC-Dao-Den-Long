@@ -1,0 +1,6 @@
+Windows | Node v24.16.0
+Archived phase-3 and ran its CLI and the current CLI for Night 1, 2 and 3 with seed 42 and 2400 requested ticks.
+PASS Night 1 matches phase-3 byte for byte 086B6589DBFC9BCD0CC19F49F7433F81186EC316658BA26BFD8A093F34871315
+PASS Night 2 matches phase-3 byte for byte E3E57550DF5A5137C72B9B82692300D01593EECD221692674A4D80D7500A3502
+PASS Night 3 matches phase-3 byte for byte 8628D6B9604AB76B6A94EF75447B6C7A3DB6E6F962393DAA2849F39A994A50E2
+PASS Fresh source install, empty leaderboard export, ten-night soak and automatic benchmark build.

@@ -1,7 +1,6 @@
-# Kiểm tra trước khi bàn giao Phase 3
+# Kiểm tra trước khi bàn giao Phase 4
 
 - Chạy `npm ci`, `npm test` và `npm run build` với Node phiên bản được hỗ trợ.
-- Kiểm tra hết giờ với đủ hoặc thiếu đèn, cùng luồng qua ba đêm. Trong trình duyệt thử châm dầu, bộ đếm sức chứa, thanh dầu nhấp nháy, hình đèn tắt xẹp và rách, cùng lưu bảng màu dễ phân biệt qua lần tải trang.
-- Đo FPS trung bình ở viewport 1280×720 trên bản build thường. Ghi trình duyệt, trình dựng WebGL, kích thước render và thời lượng lấy mẫu.
-- Làm theo `contract-verifier.md`. Lưu log test và replay mẫu vào `docs/proof/phase-3/`. Giữ bằng chứng Phase 1–2 làm mốc hồi quy.
-- Đối chiếu ADR, nhật ký triển khai, README và Breaking Changes trong CHANGELOG.
+- Kiểm tra qua ba đêm và thử lưu điểm trên cả màn thắng chiến dịch lẫn màn thua. Thử đổi phím, phím trùng, khôi phục, cảnh báo trực quan và giữ cài đặt qua lần tải lại.
+- Làm theo `contract-verifier.md`. Lưu benchmark chuẩn, soak và log kiểm thử vào `docs/proof/phase-4/`.
+- Tạo và giải nén gói ZIP. Chạy bản gói bằng Node với dữ liệu bảng xếp hạng riêng. Đối chiếu README, CHANGELOG, CREDITS, LICENSE và Retro trước khi chuẩn bị GitHub Release.

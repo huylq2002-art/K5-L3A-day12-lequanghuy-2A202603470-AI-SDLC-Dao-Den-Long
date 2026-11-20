@@ -1,0 +1,21 @@
+
+> dao-den-long@1.0.0 release
+> vite build && node src/cli/release.js
+
+vite v7.3.8 building client environment for production...
+transforming...
+✓ 27 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/bench.html                       0.59 kB │ gzip:   0.40 kB
+dist/index.html                       9.45 kB │ gzip:   2.77 kB
+dist/assets/game-UGXjWova.css         8.41 kB │ gzip:   2.75 kB
+dist/assets/bench-DP4bOkNw.js         1.67 kB │ gzip:   0.99 kB
+dist/assets/game-BSeIMBGx.js         18.02 kB │ gzip:   8.13 kB
+dist/assets/three-core-Bjl_QWMn.js  205.00 kB │ gzip:  56.72 kB
+dist/assets/render-CYgQ0s2Z.js      387.48 kB │ gzip: 101.71 kB
+✓ built in 1.38s
+release\dao-den-long-v1.0.0.zip
+PASS Extracted release starts without node_modules, and serves production HTML and JavaScript.
+PASS Extracted release saves to its own data directory and exports identical CLI entries.
+ZIP SHA-256 7d197966e111f1e04e9f66789ebec7891dbf6fac5ddcff66cc31f10cccfef561

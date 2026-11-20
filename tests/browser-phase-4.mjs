@@ -7,17 +7,20 @@ import { createServer, preview } from 'vite';
 
 const builtUrl = 'http://127.0.0.1:4278/';
 const fixtureUrl = 'http://127.0.0.1:4279/';
+mkdirSync('.npm-cache', { recursive: true });
+const profile = mkdtempSync(resolve('.npm-cache/phase4-browser-'));
+process.env.DAO_DEN_LONG_LEADERBOARD = resolve(profile, 'leaderboard-proof.json');
 const built = await preview({ preview: { host: '127.0.0.1', port: 4278, strictPort: true } });
 const fixture = await createServer({
   server: { host: '127.0.0.1', port: 4279, strictPort: true },
   plugins: [{
-    name: 'phase3-browser-fixtures',
+    name: 'phase4-browser-fixtures',
     transform(code, id) {
       if (!id.endsWith('/src/core/campaign.js')) return;
       return code.replace('createGame(campaign.seed, {}, campaign.night)', `createGame(campaign.seed, {
-        random_motes: false, random_shades: false, random_drifters: false,
-        time_left_s: location.search === '?dawn-test' ? 1/60 : location.search === '?fuel-test' ? 20 : campaign.night === 3 ? 29 : 2,
-        player: { pos: [[0,0,23.2],[35,0,0],[0,6,6]][campaign.night-1], carried: 10 },
+        random_motes: false, random_shades: location.search === '?cue-test', random_drifters: false,
+        time_left_s: location.search === '?dawn-test' ? 1/60 : location.search === '?cue-test' ? 14 : location.search === '?fuel-test' ? 20 : campaign.night === 3 ? 29 : 2,
+        player: { pos: [[0,0,23.2],[35,0,0],[0,6,6]][campaign.night-1], carried: 10, invuln_ticks: location.search === '?cue-test' ? 900 : 0 },
         lanterns: location.search === '?fuel-test' ? [
           { id: 'L1', lit: true, fuel: 29.8 }, { id: 'L2', pos: [2.4, 0, 25] }
         ] : Array.from({length:campaign.night+4}, (_, i) => ({id:'L'+(i+1), lit:i>0 && location.search !== '?dawn-test', ...(i===0 && campaign.night===2 ? {pos:[35,0,1.5]} : {})})),
@@ -27,8 +30,6 @@ const fixture = await createServer({
   }],
 });
 await fixture.listen();
-mkdirSync('.npm-cache', { recursive: true });
-const profile = mkdtempSync(resolve('.npm-cache/phase3-browser-'));
 const defaultChrome = {
   win32: 'C:/Program Files/Google/Chrome/Application/chrome.exe',
   darwin: '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
@@ -104,7 +105,7 @@ try {
   const press = async code => { await key(code, 'keyDown'); await key(code, 'keyUp'); };
   const screenShot = async name => {
     const result = await send('Page.captureScreenshot', { format: 'png' });
-    writeFileSync(`.npm-cache/phase3-${name}.png`, Buffer.from(result.data, 'base64'));
+    writeFileSync(`.npm-cache/phase4-${name}.png`, Buffer.from(result.data, 'base64'));
   };
 
   await send('Page.enable');
@@ -125,28 +126,44 @@ try {
   await waitFor("document.querySelector('#scene canvas')?.width === 1280 && document.querySelector('#menu-screen:not([hidden])')");
   assert.deepEqual(await evaluate("[document.querySelector('#scene canvas').width, document.querySelector('#scene canvas').height, Boolean(document.querySelector('#scene canvas').getContext('webgl2'))]"), [1280, 720, true]);
   console.log(await evaluate(`(() => { const gl = document.querySelector('#scene canvas').getContext('webgl2'); const ext = gl.getExtension('WEBGL_debug_renderer_info'); return ext ? gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER); })()`));
+  assert.equal(await evaluate("getComputedStyle(document.getElementById('menu-settings')).fontSize"), '18px');
   await screenShot('menu');
   await click('menu-settings');
   await waitFor(visible('settings-screen'));
   await evaluate("document.querySelector('#volume').value='61'; document.querySelector('#volume').dispatchEvent(new Event('input')); document.querySelector('#sensitivity').value='135'; document.querySelector('#sensitivity').dispatchEvent(new Event('input'))");
   await click('accessible-palette');
+  await click('reduce-motion');
+  await click('large-text');
+  assert.equal(await evaluate("getComputedStyle(document.getElementById('settings-back')).fontSize"), '22.5px');
+  await click('settings-keys');
+  await click('bind-pause');
+  await press('KeyW');
+  assert.match(await label('binding-status'), /Trùng phím/);
+  await press('KeyO');
+  assert.equal(await label('bind-pause'), 'O');
   await send('Page.reload');
   await waitFor("document.querySelector('#scene canvas') && document.querySelector('#menu-screen:not([hidden])')");
   assert.deepEqual(await evaluate("[document.querySelector('#volume').value, document.querySelector('#sensitivity').value, document.querySelector('#accessible-palette').checked, document.documentElement.dataset.accessiblePalette]"), ['61', '135', true, 'true']);
+  assert.deepEqual(await evaluate("[document.querySelector('#reduce-motion').checked, document.querySelector('#large-text').checked, document.documentElement.dataset.reduceMotion, document.documentElement.dataset.largeText, JSON.parse(localStorage.getItem('dao-den-long-settings')).bindings.pause]"), [true, true, 'true', 'true', 'KeyO']);
   await click('start-game');
   await waitFor(visible('intro-screen'));
   assert.equal(await label('intro-title'), 'Đảo Bến');
   await click('enter-night');
   await waitFor(visible('game-ui'));
+  assert.equal(await evaluate("getComputedStyle(document.getElementById('screen-flash')).display"), 'none');
   await press('ShiftLeft');
   await waitFor("document.querySelector('#dash-status').textContent.includes(' s')");
-  await press('KeyP');
+  await press('KeyO');
   await waitFor(visible('pause-screen'));
   const clock = await label('clock');
   await delay(1100);
   assert.equal(await label('clock'), clock);
   await click('pause-settings');
   await waitFor(visible('settings-screen'));
+  await click('settings-keys');
+  await click('reset-bindings');
+  assert.equal(await label('bind-pause'), 'Esc / P');
+  await click('bindings-back');
   await click('settings-back');
   await waitFor(visible('pause-screen'));
   await click('resume');
@@ -196,6 +213,7 @@ try {
     if (night === 3) {
       for (let i = 0; i < 7; i++) await step(16, 250);
       assert.ok((await label('announcement')).includes('Gió mạnh'));
+      assert.equal(await evaluate(visible('wind-cue')), true);
     }
     await screenShot(`fixture-night${night}`);
     await press('KeyE');
@@ -213,6 +231,10 @@ try {
   }
   await waitFor(visible('dawn-screen'));
   assert.match(await label('dawn-score'), /\d+ điểm tổng cộng/);
+  await click('player-name');
+  await send('Input.insertText', { text: 'May_Dawn' });
+  await click('save-score');
+  await waitFor("document.querySelector('#save-status').textContent === 'Đã lưu điểm.'");
   await click('dawn-menu');
   await waitFor(visible('menu-screen'));
   await send('Page.navigate', { url: `${fixtureUrl}?dawn-test` });
@@ -224,6 +246,10 @@ try {
   await waitFor(visible('result-screen'));
   assert.equal(await label('result-title'), 'Bình minh đã đến');
   assert.equal(await label('result-action'), 'Chơi lại đêm');
+  await click('player-name');
+  await send('Input.insertText', { text: 'May_Retry' });
+  await click('save-score');
+  await waitFor("document.querySelector('#save-status').textContent === 'Đã lưu điểm.'");
   await click('result-action');
   await step(1, 0);
   await waitFor(visible('game-ui'));
@@ -250,9 +276,25 @@ try {
   assert.equal(await evaluate(visible('oil-warning')), false);
   assert.match(await label('announcement'), /Đã châm dầu/);
   assert.equal(await label('carried'), '2 / 10');
+  await send('Page.navigate', { url: `${fixtureUrl}?cue-test` });
+  await waitFor("location.search === '?cue-test' && typeof advanceFrames === 'function' && document.querySelector('#scene canvas')");
+  await step();
+  await click('menu-leaderboard');
+  await waitFor("document.querySelectorAll('#leaderboard-entries tr').length === 2");
+  assert.deepEqual(await evaluate("[...document.querySelectorAll('#leaderboard-entries tr')].map(row=>[row.cells[1].textContent,row.cells[3].textContent])"), [['May_Dawn', '3'], ['May_Retry', '0']]);
+  await click('leaderboard-back');
+  await click('start-game');
+  await click('enter-night');
+  await step(22, 250);
+  assert.equal(await evaluate(visible('shade-cue')), true);
+  assert.equal(await evaluate(visible('shade-arrow')), true);
+  assert.match(await label('countdown-cue'), /Bình minh sau [1-9] giây/);
+  assert.ok(await evaluate("[...document.querySelectorAll('#game-ui *')].filter(element => element.checkVisibility() && [...element.childNodes].some(node => node.nodeType === 3 && node.textContent.trim())).every(element => Number.parseFloat(getComputedStyle(element).fontSize) >= 18)"));
   assert.deepEqual(errors, []);
   console.log('PASS Scenario UI chain through the three islands, lantern hints, wind warning, Bùa Gió, the Bình Minh screen and retry after defeat');
   console.log('PASS No early victory, capacity HUD, refuel interaction, persistent palette and white warning icons');
+  console.log('PASS Persistent key rebinding, duplicate warning, reset, reduced motion, large text and visual cues');
+  console.log('PASS Score entry on victory and defeat, persisted through a new page and read from the menu');
   console.log('PASS No JavaScript or WebGL errors');
 } finally {
   socket?.close();

@@ -118,13 +118,19 @@ export function createView(container) {
     player.body.rotation.y = -state.player.facing;
     player.body.visible = !state.player.falling && (!state.player.invuln || Math.floor(state.simTick / 5) % 2 === 0);
 
-    const cameraY = Math.max(-2.8, y);
-    const distance = cameraDistance(state.map.tower, x, y, z, forward, orbit.pitch, orbit.distance);
-    target.set(x, 1.35 + cameraY, -z).addScaledVector(forward, 4.6);
-    target.addScaledVector(forward, Math.min(0, (distance - orbit.distance) * 0.36));
-    camera.position.set(x, cameraY + 1.0 + Math.sin(orbit.pitch) * distance, -z)
-      .addScaledVector(forward, -Math.cos(orbit.pitch) * distance);
-    camera.lookAt(target);
+    if (orbit.position) {
+      place(camera, orbit.position);
+      camera.lookAt(0, 0, 0);
+    } else {
+      const cameraY = Math.max(-2.8, y);
+      const distance = cameraDistance(state.map.tower, x, y, z, forward, orbit.pitch, orbit.distance);
+      target.set(x, 1.35 + cameraY, -z).addScaledVector(forward, 4.6);
+      target.addScaledVector(forward, Math.min(0, (distance - orbit.distance) * 0.36));
+      camera.position.set(x, cameraY + 1.0 + Math.sin(orbit.pitch) * distance, -z)
+        .addScaledVector(forward, -Math.cos(orbit.pitch) * distance);
+      camera.position.x += orbit.shake ?? 0;
+      camera.lookAt(target);
+    }
 
     let lit = 0;
     for (let i = 0; i < lamps.length; i++) {
@@ -239,15 +245,15 @@ export function createView(container) {
       place(ring, pos, 0.8);
       pulseAt = time;
     },
-    outsideTarget(pos) {
+    outsideTarget(pos, forceEdge = false) {
       if (!pos) return null;
       const marker = new THREE.Vector3(pos[0], pos[1] + 2.0, -pos[2]);
       const behind = camera.getWorldDirection(forward).dot(marker.clone().sub(camera.position)) < 0;
       marker.project(camera);
-      if (!behind && Math.abs(marker.x) <= 1 && Math.abs(marker.y) <= 1 && Math.abs(marker.z) <= 1) return null;
+      if (!forceEdge && !behind && Math.abs(marker.x) <= 1 && Math.abs(marker.y) <= 1 && Math.abs(marker.z) <= 1) return null;
       if (behind) marker.multiplyScalar(-1);
       if (!Number.isFinite(marker.x + marker.y) || Math.abs(marker.x) + Math.abs(marker.y) < 0.001) marker.set(0, -1, 0);
-      const scale = Math.min(0.88 / Math.abs(marker.x), 0.66 / Math.abs(marker.y));
+      const scale = Math.min((forceEdge ? 0.94 : 0.88) / Math.abs(marker.x), (forceEdge ? 0.74 : 0.66) / Math.abs(marker.y));
       return { x: 50 + 50 * marker.x * scale, y: 50 - 50 * marker.y * scale, angle: Math.atan2(marker.x * width, marker.y * height) };
     },
     reset() {

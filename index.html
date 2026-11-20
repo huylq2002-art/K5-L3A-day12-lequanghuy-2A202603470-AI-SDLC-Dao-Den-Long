@@ -13,6 +13,7 @@
       <div id="scene" class="scene" aria-label="Không gian 3D"></div>
 
       <div id="game-ui" hidden>
+        <div id="screen-flash" aria-hidden="true"></div>
         <header class="game-header">
           <section class="stat panel vitality" aria-label="Ngọn lửa">
             <span id="night-label">Đêm 1 · Đảo Bến</span>
@@ -29,6 +30,12 @@
         </header>
 
         <div id="target-arrow" class="target-arrow" role="img" aria-label="Hướng đến đèn lồng chưa sáng" hidden><span>▲</span></div>
+        <div id="shade-arrow" class="target-arrow shade-arrow" role="img" aria-label="Hướng Bóng Mực vừa xuất hiện" hidden><span>▲</span></div>
+        <div class="captions" role="status" aria-label="Cảnh báo trong đêm">
+          <p class="panel" id="shade-cue" hidden>Bóng Mực vừa xuất hiện</p>
+          <p class="panel" id="wind-cue" hidden>Gió mạnh sắp đến</p>
+          <p class="panel" id="countdown-cue" hidden></p>
+        </div>
         <div class="game-bottom">
           <aside class="map-panel panel" aria-label="Bản đồ đêm hiện tại">
             <canvas id="map" width="280" height="200" aria-hidden="true"></canvas>
@@ -37,15 +44,15 @@
           <div class="pack">
             <p id="oil-warning" class="panel oil-warning" role="status" hidden></p>
             <p id="announcement" class="announcement" role="status"></p>
-            <p id="interact-hint" class="panel hint" hidden><kbd>E</kbd><span id="interact-text"></span></p>
+            <p id="interact-hint" class="panel hint" hidden><kbd data-action-key="interact">E</kbd><span id="interact-text"></span></p>
             <div class="panel inventory">
               <span>Đom đóm <strong id="carried">0 / 10</strong></span>
               <div id="mote-track" class="mote-track" aria-hidden="true"></div>
             </div>
           </div>
           <section class="abilities" aria-label="Hồi chiêu">
-            <div class="panel ability"><kbd>Shift</kbd><strong>Lướt</strong><small id="dash-status"></small></div>
-            <div class="panel ability"><kbd>F</kbd><strong>Tỏa sáng</strong><small id="pulse-status"></small></div>
+            <div class="panel ability"><kbd data-action-key="dash">Shift</kbd><strong>Lướt</strong><small id="dash-status"></small></div>
+            <div class="panel ability"><kbd data-action-key="pulse">F</kbd><strong>Tỏa sáng</strong><small id="pulse-status"></small></div>
           </section>
         </div>
       </div>
@@ -55,16 +62,16 @@
           <p class="chapter">BA HÒN ĐẢO</p>
           <h1 id="title">Đảo Đèn Lồng</h1>
           <p>Theo Mây thắp sáng Đảo Bến, Đảo Cau và Đảo Chuông trước bình minh.</p>
-          <div class="screen-actions"><button class="primary" id="start-game">Bắt đầu</button><button id="menu-settings">Cài đặt</button></div>
+          <div class="screen-actions"><button class="primary" id="start-game">Bắt đầu</button><button id="menu-settings">Cài đặt</button><button id="menu-leaderboard">Bảng xếp hạng</button></div>
         </section>
         <section id="intro-screen" class="sheet" aria-labelledby="intro-title" hidden>
           <p id="intro-night" class="chapter"></p>
           <h2 id="intro-title"></h2>
           <blockquote><p id="intro-story"></p><cite>Ông Đăng</cite></blockquote>
           <div class="controls" aria-label="Điều khiển">
-            <span><kbd>WASD</kbd> / <kbd>↑↓←→</kbd> Di chuyển</span><span><kbd>Space</kbd> Nhảy</span>
-            <span><kbd>Shift</kbd> Lướt</span><span><kbd>E</kbd> Nạp đèn</span><span><kbd>F</kbd> Tỏa sáng</span><span><kbd>Esc</kbd> / <kbd>P</kbd> Tạm dừng</span>
-            <span class="camera-help">Kéo chuột hoặc <kbd>Q</kbd> / <kbd>R</kbd> để xoay camera.</span>
+            <span><kbd id="move-keys">W · A · S · D</kbd> Di chuyển</span><span><kbd data-action-key="jump">Space</kbd> Nhảy</span>
+            <span><kbd data-action-key="dash">Shift</kbd> Lướt</span><span><kbd data-action-key="interact">E</kbd> Nạp đèn</span><span><kbd data-action-key="pulse">F</kbd> Tỏa sáng</span><span><kbd data-action-key="pause">Esc</kbd> Tạm dừng</span>
+            <span class="camera-help">Kéo chuột để xoay camera.</span>
           </div>
           <div class="screen-actions"><button class="primary" id="enter-night">Vào đảo</button></div>
         </section>
@@ -84,19 +91,42 @@
           <label class="setting palette-setting" for="accessible-palette">
             <span>Bảng màu dễ phân biệt</span><input type="checkbox" id="accessible-palette">
           </label>
-          <div class="screen-actions"><button class="primary" id="settings-back">Quay lại</button></div>
+          <label class="setting palette-setting" for="reduce-motion"><span>Giảm chuyển động</span><input type="checkbox" id="reduce-motion"></label>
+          <label class="setting palette-setting" for="large-text"><span>Chữ lớn (×1.25)</span><input type="checkbox" id="large-text"></label>
+          <div class="screen-actions"><button class="primary" id="settings-back">Quay lại</button><button id="settings-keys">Đổi phím</button></div>
+        </section>
+        <section id="bindings-screen" class="sheet" aria-labelledby="bindings-title" hidden>
+          <h2 id="bindings-title">Đổi phím</h2>
+          <div id="bindings-list" class="bindings-list"></div>
+          <p id="binding-status" role="status"></p>
+          <div class="screen-actions"><button class="primary" id="bindings-back">Quay lại</button><button id="reset-bindings">Khôi phục mặc định</button></div>
+        </section>
+        <section id="leaderboard-screen" class="sheet" aria-labelledby="leaderboard-title" hidden>
+          <h2 id="leaderboard-title">Bảng xếp hạng</h2>
+          <p id="leaderboard-status" role="status"></p>
+          <table><thead><tr><th scope="col">Hạng</th><th scope="col">Tên</th><th scope="col">Điểm</th><th scope="col">Đêm thắng</th></tr></thead><tbody id="leaderboard-entries"></tbody></table>
+          <div class="screen-actions"><button class="primary" id="leaderboard-back">Về menu</button></div>
         </section>
         <section id="result-screen" class="sheet compact" aria-labelledby="result-title" hidden>
           <p id="result-night" class="chapter"></p><h2 id="result-title"></h2>
           <p id="result-copy"></p><strong class="total" id="result-score"></strong>
+          <div id="loss-save"></div>
           <div class="screen-actions"><button class="primary" id="result-action"></button><button id="result-menu">Về menu</button></div>
         </section>
         <section id="dawn-screen" class="sheet home" aria-labelledby="dawn-title" hidden>
           <p class="chapter">BA HÒN ĐẢO ĐÃ SÁNG</p><h2 id="dawn-title">Bình Minh</h2>
           <p>Ánh đèn của Mây đã nối liền ba hòn đảo.</p><strong class="total" id="dawn-score"></strong>
+          <div id="dawn-save"></div>
           <div class="screen-actions"><button class="primary" id="dawn-menu">Về menu</button></div>
         </section>
       </div>
+      <form id="save-result" class="save-result" hidden>
+        <label for="player-name">Tên lưu điểm</label>
+        <div><input id="player-name" name="name" minlength="3" maxlength="12" pattern="[A-Za-z0-9_]{3,12}" required aria-describedby="name-help">
+          <button id="save-score" type="submit">Lưu điểm</button></div>
+        <p id="name-help">3–12 ký tự, gồm chữ Latin, chữ số hoặc gạch dưới.</p>
+        <p id="save-status" role="status"></p>
+      </form>
       <p id="fatal" class="fatal panel" role="alert" hidden></p>
     </main>
     <script type="module" src="/src/client/main.js"></script>

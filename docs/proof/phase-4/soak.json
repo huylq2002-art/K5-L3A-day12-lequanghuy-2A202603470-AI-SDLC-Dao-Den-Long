@@ -1,0 +1,89 @@
+{
+  "nights": 10,
+  "crashes": 0,
+  "results": [
+    {
+      "night": 1,
+      "seed": 7,
+      "ticks": 2859,
+      "state": "lost",
+      "reason": "no_flames",
+      "score": 0
+    },
+    {
+      "night": 2,
+      "seed": 8,
+      "ticks": 890,
+      "state": "lost",
+      "reason": "no_flames",
+      "score": 0
+    },
+    {
+      "night": 3,
+      "seed": 9,
+      "ticks": 3959,
+      "state": "lost",
+      "reason": "no_flames",
+      "score": 0
+    },
+    {
+      "night": 1,
+      "seed": 10,
+      "ticks": 1743,
+      "state": "lost",
+      "reason": "no_flames",
+      "score": 0
+    },
+    {
+      "night": 2,
+      "seed": 11,
+      "ticks": 1213,
+      "state": "lost",
+      "reason": "no_flames",
+      "score": 0
+    },
+    {
+      "night": 3,
+      "seed": 12,
+      "ticks": 1693,
+      "state": "lost",
+      "reason": "no_flames",
+      "score": 0
+    },
+    {
+      "night": 1,
+      "seed": 13,
+      "ticks": 1399,
+      "state": "lost",
+      "reason": "no_flames",
+      "score": 0
+    },
+    {
+      "night": 2,
+      "seed": 14,
+      "ticks": 2336,
+      "state": "lost",
+      "reason": "no_flames",
+      "score": 0
+    },
+    {
+      "night": 3,
+      "seed": 15,
+      "ticks": 4759,
+      "state": "lost",
+      "reason": "no_flames",
+      "score": 0
+    },
+    {
+      "night": 1,
+      "seed": 16,
+      "ticks": 3434,
+      "state": "lost",
+      "reason": "no_flames",
+      "score": 0
+    }
+  ],
+  "mem_start_mb": 53.23046875,
+  "mem_end_mb": 61.84375,
+  "duration_s": 0.8059536
+}
