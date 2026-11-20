@@ -1,5 +1,3 @@
-import { TUNING } from './config.ts';
-
 export function distanceXZ(a, b) {
   return Math.hypot(a[0] - b[0], a[2] - b[2]);
 }
@@ -18,15 +16,26 @@ export function rotateMove(x, z, yawDeg) {
   return [x * cos + z * sin, -x * sin + z * cos];
 }
 
-export function confineToIsland([x, y, z]) {
-  const length = Math.hypot(x, z);
-  if (length <= TUNING.island_radius) return [x, y, z];
-  const angle = Math.atan2(z, x);
-  return [Math.cos(angle) * TUNING.island_radius, y, Math.sin(angle) * TUNING.island_radius];
+export function directionXZ(from, to, fallback = [1, 0]) {
+  const dx = to[0] - from[0];
+  const dz = to[2] - from[2];
+  const length = Math.hypot(dx, dz);
+  return length > 0 ? [dx / length, dz / length] : fallback;
 }
 
 export function offsetXZ([x, y, z], angle, radius) {
   return [x + Math.cos(angle) * radius, y, z + Math.sin(angle) * radius];
+}
+
+export function inReach(a, b, radius, height) {
+  return Math.abs(a[1] - b[1]) <= height && distanceXZ(a, b) <= radius;
+}
+
+export function byId(a, b) {
+  const first = /^([A-Z]+)(\d+)$/.exec(a.id);
+  const second = /^([A-Z]+)(\d+)$/.exec(b.id);
+  if (first && second && first[1] === second[1]) return Number(first[2]) - Number(second[2]);
+  return a.id < b.id ? -1 : Number(a.id !== b.id);
 }
 
 export function seededRandom(seed) {

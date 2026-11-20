@@ -1,6 +1,7 @@
-# Kiểm tra trước khi gắn tag Phase 1
+# Kiểm tra trước khi bàn giao Phase 2
 
 - Chạy `npm ci`, `npm test` và `npm run build` với Node phiên bản được hỗ trợ.
-- Xác minh `run_cmd` phục vụ giao diện và chơi thử Đêm 1. Kiểm tra di chuyển, camera, nhảy, nạp đèn, Pulse, âm thanh, HUD và Chơi lại.
-- Làm theo `contract-verifier.md`. Lưu log test, JSONL mẫu và lệnh tái tạo vào `docs/proof/phase-1/`.
-- Kiểm tra `README.md`, `CHANGELOG.md`, `CREDITS.md`, `LICENSE` và ghi chép giả định cùng nhật ký AI. Ghi chính xác nền tảng đã kiểm tra trước khi người phụ trách tạo tag.
+- Kiểm tra menu → giới thiệu → chơi → kết quả → đêm sau → Bình Minh. Thử Esc/P, chơi lại đêm, về menu và việc lưu cài đặt qua lần tải trang. Kiểm tra cả ba bản đồ, HUD, mũi chỉ đèn, cảnh báo gió, âm thanh và hiệu ứng lướt.
+- Đo FPS trung bình ở viewport 1280×720 trên bản build thường. Ghi trình duyệt, trình dựng WebGL, kích thước render và thời lượng lấy mẫu.
+- Làm theo `contract-verifier.md`. Lưu log test, ba replay và lệnh tái tạo vào `docs/proof/phase-2/`. Giữ bằng chứng Phase 1 làm mốc hồi quy.
+- Đối chiếu spec, README, CHANGELOG và ghi chép giả định. Đưa cập nhật AGENTS và kỹ năng vào commit Phase 2 để có lịch sử.

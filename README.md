@@ -1,52 +1,63 @@
 # Đảo Đèn Lồng
 
-**Phase 1 · Đêm 1 – Đảo Bến**
+**Phase 2 · Ba hòn đảo**
 
-Theo dấu đom đóm, mang ánh sáng đến năm chiếc đèn lồng lớn và thắp sáng đảo trước bình minh. Đèn đã thắp tạo vùng an toàn. Khi Bóng Mực áp sát, Mây có thể dùng ánh sáng đang mang để đẩy lùi chúng.
+Theo Mây và lời Ông Đăng qua Đảo Bến, Đảo Cau và Đảo Chuông. Gom đom đóm, thắp hết đèn của từng đêm và mang tổng điểm đến Bình Minh. Đảo Cau có cầu tre và bục nhảy sang bờ kia. Đảo Chuông có ba tầng, dốc dẫn lên vành đá và những cơn gió mạnh.
 
 ## Cài và chơi
 
-Dùng Node.js 22.18+ thuộc dòng 22, hoặc 24 trở lên, cùng npm. Các lệnh chạy từ thư mục gốc trên Windows, macOS và Linux. Trình duyệt cần WebGL 2.
+Dùng Node.js 22.18+ thuộc dòng 22, hoặc 24 trở lên, cùng npm và trình duyệt hỗ trợ WebGL 2.
 
 ```sh
 npm ci
 npm run dev
 ```
 
-Mở `http://127.0.0.1:5173/`. Nếu cổng bận, dùng địa chỉ Vite in ra. Chạy `npm run build` để tạo bản phát hành tĩnh trong `dist/`.
-
-## Điều khiển
+Mở `http://127.0.0.1:5173/` hoặc địa chỉ Vite in ra. `npm run build` tạo bản tĩnh trong `dist/`.
 
 | Phím | Hành động |
 | --- | --- |
-| `WASD` hoặc phím mũi tên | Di chuyển theo hướng camera. Đi gần đom đóm để tự nhặt. |
-| `Space` | Nhảy. |
-| `E` | Nạp ánh sáng vào đèn chưa sáng gần nhất. Mỗi đèn cần 5 ánh sáng và có thể nạp nhiều lần. |
-| `F` | Tỏa sáng, tốn 2 ánh sáng. Đẩy lùi và làm choáng Bóng Mực trong phạm vi 6 m. Hồi chiêu 3 giây. |
+| `WASD` hoặc mũi tên | Di chuyển theo hướng camera. Đến gần đom đóm và bùa để tự nhặt. |
+| `Space` | Nhảy khi chạm đất. |
+| `Shift` | Lướt theo hướng di chuyển hoặc hướng Mây đang nhìn. |
+| `E` | Nạp đèn chưa sáng gần nhất. Mỗi đèn cần 10 đom đóm. |
+| `F` | Tỏa Sáng, tốn 3 đom đóm. Làm choáng Bóng Mực và có thể buộc Gió Lạc thả đồ. |
 | `Q` / `R`, kéo chuột | Xoay camera. Cuộn để đổi khoảng cách. |
-| **Chơi lại** | Khởi động lại Đêm 1. |
+| `Esc` / `P` | Tạm dừng hoặc tiếp tục. Menu tạm dừng có chơi lại, cài đặt và quay về menu chính. |
 
-Mây bắt đầu với 3 ngọn lửa và 5 phút. Chạm Bóng Mực làm mất 1 ngọn lửa và rơi một nửa ánh sáng đang mang, làm tròn xuống. Thắp đủ năm đèn để thắng. Hết ngọn lửa hoặc đến bình minh khi đảo chưa sáng là thua.
+Túi chứa 10 đom đóm. Mỗi đêm bắt đầu với ba Ngọn Lửa. Bóng Mực gây mất một Ngọn Lửa và làm rơi một nửa đom đóm. Rơi xuống biển mây làm mất một Ngọn Lửa và toàn bộ đom đóm đang mang. Bùa Gió tăng tốc và bỏ hồi chiêu Lướt trong 10 giây. Âm lượng và độ nhạy chuột được lưu trong trình duyệt.
 
-| Sự kiện | Điểm |
+| Cách tính điểm trong đêm | Điểm |
 | --- | ---: |
-| Nhặt một đom đóm | +10 |
-| Thắp một đèn lồng lớn | +200 |
-| Thắng Đêm 1 | +500 |
+| Mỗi đom đóm nạp vào đèn | +10 |
+| Mỗi đèn thắp sáng | +100 |
+| Mỗi Bóng Mực trúng một lần Tỏa Sáng | +5 |
+| Thắng đêm | `floor(giây còn) × 2 + Ngọn Lửa còn lại × 50` |
 
-## Kiểm thử và CLI
+Điểm chiến dịch cộng từ các Đêm đã thắng. Một đêm thua có thể chơi lại và giữ điểm của các đêm đã thắng trước đó.
+
+## Test Contract v1.1
 
 ```sh
 npm test
-node src/cli/headless.js --seed 7 --night 1 --scenario tests/fixtures/scenario.json --inputs tests/fixtures/inputs.json --ticks 240 --out docs/proof/phase-1/sample.jsonl
+node src/cli/headless.js --seed 7 --night 3 --ticks 2160 --snapshot-every 60 --out replay.jsonl
 ```
 
-`--seed`, `--night 1`, `--ticks` và `--out` là bắt buộc. `--scenario` và `--inputs` là tùy chọn. Dùng `--snapshot-every` để đổi chu kỳ snapshot, mặc định 10 tick. Thư mục chứa tệp `--out` cần tồn tại. CLI trả mã `0` khi chạy đủ số tick hoặc kết thúc ván và mã `2` kèm lỗi trên stderr khi tham số hoặc dữ liệu đầu vào sai.
+`--night` nhận `1`, `2`, `3`. `--seed`, `--night`, `--ticks` và `--out` là bắt buộc. `--scenario`, `--inputs` và `--snapshot-every` là tùy chọn. Snapshot mặc định mỗi 10 tick. Thư mục chứa tệp đầu ra cần tồn tại. Lệnh thành công trả mã `0`, đầu vào sai trả mã `2` và báo lỗi qua stderr.
 
-Input là mảng JSON, hoặc đối tượng có khóa `inputs` chứa mảng. `tick` là số nguyên không âm tăng nghiêm ngặt. Ví dụ, bản ghi `{"tick":0,"move":[0,1],"cam_yaw_deg":90}` cho Mây đi theo `+X` từ bước đầu tiên. `move` nhận `[x,z]` hoặc `{"x":0,"z":1}`. Có thể dùng `x`/`z` hoặc `move_x`/`move_z` thay cho `move`. Trục di chuyển và yaw giữ giá trị tới khi được cập nhật. Các trường boolean `jump`, `interact` và `pulse` chỉ kích hoạt tại tick của bản ghi.
+Input là mảng bản ghi có `tick` nguyên, không âm và tăng nghiêm ngặt, hoặc đối tượng `{ "inputs": [...] }`. `[x,z]` và `{x,z}` được chấp nhận trong `move`. `x`/`z` hay `move_x`/`move_z` cũng hợp lệ. Trục di chuyển và yaw giữ nguyên đến khi cập nhật. `jump`, `interact` và `pulse` được ghi tại tick cần bấm. `dash` và `pause` bắt đầu khi chuyển từ `false` sang `true`. Một tick thiếu trường nút được xem là `false`.
 
-Mỗi dòng đầu ra là một đối tượng JSON. Snapshot ban đầu nằm tại tick 0. Sau đó CLI ghi sự kiện với tick của trạng thái mới, tiếp theo là snapshot nếu đến chu kỳ. Dòng cuối cùng luôn là `end` khi chạy thành công.
+```json
+[
+  { "tick": 0, "move": [0, 1], "cam_yaw_deg": 90, "dash": true },
+  { "tick": 12, "move": [0, 0], "pause": true },
+  { "tick": 40, "pause": true }
+]
+```
 
-- [`game.contract.json`](game.contract.json) chứa lệnh chuẩn và toàn bộ tuning.
-- [`docs/notes/phase-1.md`](docs/notes/phase-1.md) ghi các quy tắc bổ sung và nhật ký AI.
-- [`docs/proof/phase-1/`](docs/proof/phase-1/) lưu kết quả kiểm thử và replay mẫu.
+CLI dựng scenario và ghi snapshot tick 0 trước `night_start`. Bản ghi tick `k` tạo trạng thái và sự kiện ở tick `k+1`. Khi pause, `tick` tiếp tục tăng và `sim_tick` đứng yên. Dòng cuối mỗi lượt hợp lệ là `end`.
+
+- [Hợp đồng và tuning](game.contract.json)
+- [Spec và tiêu chí chấp nhận](docs/notes/ticket-02-spec.md)
+- [Giả định triển khai](docs/notes/phase-2.md)
+- [Bằng chứng kiểm thử và ba replay](docs/proof/phase-2/README.md)

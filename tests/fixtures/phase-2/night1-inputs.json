@@ -1,0 +1,7 @@
+[
+  {"tick":0,"move":[1,0],"dash":true},
+  {"tick":12,"move":[0,0]},
+  {"tick":20,"pause":true},
+  {"tick":30,"pause":true},
+  {"tick":160,"interact":true}
+]

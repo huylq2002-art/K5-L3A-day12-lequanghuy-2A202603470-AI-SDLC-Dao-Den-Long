@@ -1,0 +1,5 @@
+Platform: Windows
+Node: v24.16.0
+Runtime: 1.211 s
+Ticks requested: 21600; snapshot cadence: 10
+{"type":"end","ticks":21600,"state":"lost","score":0}

@@ -1,4 +1,5 @@
-import { LANTERN_LAYOUT, TUNING as T } from '../core/config.ts';
+import { DRIFTER_STATES, SHADE_STATES, TUNING as T } from '../core/config.ts';
+import { NIGHTS } from '../core/maps.js';
 
 function check(condition, path, expectation) {
   if (!condition) throw new Error(`${path}: ${expectation}`);
@@ -31,46 +32,73 @@ function position(value, path) {
   check(Array.isArray(value) && value.length === 3 && value.every(Number.isFinite), path, 'expected [x, y, z] with finite numbers');
 }
 
-export function validateScenario(scenario) {
-  object(scenario, 'scenario', ['player', 'random_motes', 'random_shades', 'motes', 'shades', 'lanterns', 'time_left_s']);
-  const { player, motes, shades, lanterns } = scenario;
+function entities(list, name, checkEntry) {
+  if (list === undefined) return;
+  const path = `scenario.${name}`;
+  array(list, path);
+  const ids = new Set();
+  list.forEach((entry, i) => {
+    const item = `${path}[${i}]`;
+    checkEntry(entry, item);
+    if (entry.id === undefined) return;
+    check(typeof entry.id === 'string' && entry.id.trim().length > 0 && !ids.has(entry.id), `${item}.id`, 'expected a unique non-empty string');
+    ids.add(entry.id);
+  });
+}
+
+export function validateScenario(scenario, night) {
+  const flags = ['random_motes', 'random_shades', 'random_drifters', 'wind_enabled'];
+  object(scenario, 'scenario', ['player', 'motes', 'shades', 'lanterns', 'drifters', 'charms', 'time_left_s', ...flags]);
+  const { player, motes, shades, lanterns, drifters, charms } = scenario;
   if (player !== undefined) {
-    object(player, 'scenario.player', ['pos', 'carried', 'flames']);
+    const timers = ['invuln_ticks', 'dash_cd_ticks', 'pulse_cd_ticks', 'charm_ticks'];
+    object(player, 'scenario.player', ['pos', 'carried', 'flames', ...timers]);
     if ('pos' in player) position(player.pos, 'scenario.player.pos');
-    if ('carried' in player) count(player.carried, 'scenario.player.carried');
-    if ('flames' in player) count(player.flames, 'scenario.player.flames');
+    if ('carried' in player) count(player.carried, 'scenario.player.carried', T.max_carried);
+    if ('flames' in player) count(player.flames, 'scenario.player.flames', T.starting_flames);
+    for (const key of timers) if (key in player) count(player[key], `scenario.player.${key}`);
   }
-  for (const key of ['random_motes', 'random_shades']) {
+  for (const key of flags) {
     if (key in scenario) boolean(scenario[key], `scenario.${key}`);
   }
   if ('time_left_s' in scenario) {
     number(scenario.time_left_s, 'scenario.time_left_s');
     check(scenario.time_left_s >= 0, 'scenario.time_left_s', 'expected a non-negative time');
   }
-  if (motes !== undefined) {
-    array(motes, 'scenario.motes');
-    motes.forEach((pos, index) => position(pos, `scenario.motes[${index}]`));
-  }
-  if (shades !== undefined) {
-    array(shades, 'scenario.shades');
-    const ids = new Set();
-    shades.forEach((shade, index) => {
-      const path = `scenario.shades[${index}]`;
-      object(shade, path, ['id', 'pos']);
-      position(shade.pos, `${path}.pos`);
-      if ('id' in shade) {
-        check(typeof shade.id === 'string' && shade.id.trim().length > 0 && !ids.has(shade.id), `${path}.id`, 'expected a unique non-empty string');
-        ids.add(shade.id);
-      }
-    });
-  }
+  entities(motes, 'motes', (mote, path) => {
+    if (Array.isArray(mote)) return position(mote, path);
+    object(mote, path, ['id', 'pos', 'kind', 'ttl_ticks']);
+    position(mote.pos, `${path}.pos`);
+    if ('kind' in mote) check(['random', 'dropped'].includes(mote.kind), `${path}.kind`, 'expected random or dropped');
+    if ('ttl_ticks' in mote) count(mote.ttl_ticks, `${path}.ttl_ticks`);
+  });
+  entities(shades, 'shades', (shade, path) => {
+    object(shade, path, ['id', 'pos', 'state', 'state_ticks_left']);
+    position(shade.pos, `${path}.pos`);
+    if ('state' in shade) check(SHADE_STATES.includes(shade.state), `${path}.state`, 'invalid shade state');
+    if ('state_ticks_left' in shade) count(shade.state_ticks_left, `${path}.state_ticks_left`);
+  });
+  entities(drifters, 'drifters', (drifter, path) => {
+    object(drifter, path, ['id', 'pos', 'state', 'stolen', 'state_ticks_left', 'flee_ticks']);
+    position(drifter.pos, `${path}.pos`);
+    if ('state' in drifter) check(DRIFTER_STATES.includes(drifter.state), `${path}.state`, 'invalid drifter state');
+    if ('stolen' in drifter) count(drifter.stolen, `${path}.stolen`, T.drifter_steal_amount);
+    for (const timer of ['state_ticks_left', 'flee_ticks']) if (timer in drifter) count(drifter[timer], `${path}.${timer}`);
+  });
+  entities(charms, 'charms', (charm, path) => {
+    object(charm, path, ['id', 'pos', 'available', 'respawn_ticks']);
+    if ('pos' in charm) position(charm.pos, `${path}.pos`);
+    else check(NIGHTS[night].charms.some(entry => entry.id === charm.id), `${path}.pos`, 'expected a position or a standard charm ID');
+    if ('available' in charm) boolean(charm.available, `${path}.available`);
+    if ('respawn_ticks' in charm) count(charm.respawn_ticks, `${path}.respawn_ticks`);
+  });
   if (lanterns !== undefined) {
     array(lanterns, 'scenario.lanterns');
-    const ids = new Set(LANTERN_LAYOUT.map(lantern => lantern.id));
+    const ids = new Set(NIGHTS[night].lanterns.map(lantern => lantern.id));
     lanterns.forEach((lantern, index) => {
       const path = `scenario.lanterns[${index}]`;
       object(lantern, path, ['id', 'pos', 'lit', 'deposited']);
-      check(ids.delete(lantern.id), `${path}.id`, 'expected a unique lantern ID from L1 to L5');
+      check(ids.delete(lantern.id), `${path}.id`, `expected a unique lantern ID from L1 to L${NIGHTS[night].lanterns.length}`);
       if ('pos' in lantern) position(lantern.pos, `${path}.pos`);
       if ('lit' in lantern) boolean(lantern.lit, `${path}.lit`);
       if ('deposited' in lantern) count(lantern.deposited, `${path}.deposited`, T.lantern_cost);
@@ -112,7 +140,8 @@ export function validateInputs(value) {
   let previous = -1;
   return frames.map((frame, index) => {
     const path = `inputs[${index}]`;
-    object(frame, path, ['tick', 'x', 'z', 'move_x', 'move_z', 'move', 'cam_yaw_deg', 'jump', 'interact', 'pulse']);
+    const actions = ['jump', 'interact', 'pulse', 'dash', 'pause'];
+    object(frame, path, ['tick', 'x', 'z', 'move_x', 'move_z', 'move', 'cam_yaw_deg', ...actions]);
     count(frame.tick, `${path}.tick`);
     check(frame.tick > previous, `${path}.tick`, 'ticks must be strictly increasing');
     previous = frame.tick;
@@ -121,7 +150,7 @@ export function validateInputs(value) {
       number(frame.cam_yaw_deg, `${path}.cam_yaw_deg`);
       input.cam_yaw_deg = frame.cam_yaw_deg;
     }
-    for (const action of ['jump', 'interact', 'pulse']) {
+    for (const action of actions) {
       if (!(action in frame)) continue;
       boolean(frame[action], `${path}.${action}`);
       input[action] = frame[action];

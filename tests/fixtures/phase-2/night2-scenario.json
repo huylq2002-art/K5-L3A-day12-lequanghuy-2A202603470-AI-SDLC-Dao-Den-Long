@@ -1,0 +1,11 @@
+{
+  "player": { "pos": [20,0,18], "carried": 7 },
+  "random_motes": false,
+  "random_shades": false,
+  "random_drifters": false,
+  "motes": [[51.25,0,6.75],[51.3,0,6.8],[51.2,0,6.7],[51.4,0,6.7],[51.5,0,6.8],[51.35,0,6.7]],
+  "drifters": [{"pos":[20.4,0.8,18],"state":"chase"}],
+  "shades": [{"pos":[22,0.8,18]}],
+  "charms": [{"id":"C1","pos":[51.25,0,6.75]}],
+  "lanterns": [{"id":"L1","pos":[51.3,0,6.7]},{"id":"L2","lit":true},{"id":"L3","lit":true},{"id":"L4","lit":true},{"id":"L5","lit":true},{"id":"L6","lit":true}]
+}

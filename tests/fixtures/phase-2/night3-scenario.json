@@ -1,0 +1,8 @@
+{
+  "player": { "pos": [0,3,13] },
+  "random_motes": false,
+  "random_shades": false,
+  "random_drifters": false,
+  "wind_enabled": true,
+  "motes": [[0,6,6.25]]
+}

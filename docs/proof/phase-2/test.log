@@ -1,0 +1,38 @@
+
+> dao-den-long@2.0.0 test
+> node --test
+
+✔ v1.1 JSONL shape, tick 0, every-ten snapshots and exact runtime of a partial replay in each night (516.356ms)
+✔ sparse motion rotation, dash press/hold, pause press/hold and frozen cooldowns/TTL (251.538ms)
+✔ natural fall from the Night 1 edge, exact respawn, and fatal fall with no respawn (258.8952ms)
+✔ both Night 2 jump pads, bamboo bridge and Night 3 summit pad have headless replays (508.012ms)
+✔ Night 3 lanes: both ramps ascend, ledges descend, and the two-thirds wind markers are deterministic (615.7207ms)
+✔ all spawn schedules, unique positions and IDs, first interaction on a later tick (854.861ms)
+✔ strict event order from move to pickup/deposit/Pulse, then steal and shade hit, then terminal (244.5189ms)
+✔ Gió Lạc steals inside safe light and despite invulnerability, then drops recoverable motes via Pulse (131.1018ms)
+✔ Bùa Gió headless overrides, pickup, repeat dash, expiry and replenishment (290.1552ms)
+✔ partial deposits, dawn win bonus and early terminal behavior retain Night 1 regression coverage (139.189ms)
+✔ malformed/v1.1 invalid JSON, dates, controls and CLI flags exit 2 via stderr (2690.307ms)
+✔ full Night 3 headless with scheduled enemies and default JSONL cadence runs below 30 seconds (1648.7668ms)
+✔ v1.1 tuning, night layouts, spawn point counts and TICKET-02 constants (4.0032ms)
+✔ normalized camera rotation, six-tick acceleration/braking, full air control and grounded jumps (2.521ms)
+✔ dash lasts exactly 12 movement ticks, fixes air altitude and cooldown begins at launch (1.0692ms)
+✔ dash grants no invulnerability and a border fall bypasses invulnerability with exact respawn (2.3407ms)
+✔ Night 2 pads lock their launch velocity, permit a dash and land on the opposite island (2.2763ms)
+✔ Night 3 ramps, one-way drops, pad-to-summit landing and tower collision (5.4037ms)
+✔ pickup uses horizontal plus vertical bounds and cap, then ties deposit to one smallest ID (0.7608ms)
+✔ safe-zone update protects immediately and pushes an existing shade out in 30 ticks (6.5336ms)
+✔ Pulse locks 3D targets, counts score per shade, pushes for 15 ticks and refreshes stun (1.7861ms)
+✔ shade chase hysteresis, recoil, hit drop ring, TTL and invulnerability (5.7329ms)
+✔ Gió Lạc steals before shade damage despite invulnerability, returns stolen motes on Pulse and disappears (1.7047ms)
+✔ Bùa Gió enables 7.2 m/s and repeat dash, consumes input during a dash and respawns (11.3456ms)
+✔ wind warning, active duration and displacement are deterministic; paused clocks and TTL freeze (17.8981ms)
+✔ same tick priority is no flames before last lamp before dawn, and campaign credits each win once (1.3064ms)
+ℹ tests 26
+ℹ suites 0
+ℹ pass 26
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 8339.3312

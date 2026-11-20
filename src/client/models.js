@@ -1,7 +1,8 @@
 import * as THREE from 'three';
 import { TUNING as T } from '../core/config.ts';
+import { PALETTE as P } from './palette.js';
 
-export const matte = color => new THREE.MeshStandardMaterial({ color, roughness: 1, flatShading: true });
+export const matte = color => new THREE.MeshLambertMaterial({ color, flatShading: true });
 export const box = new THREE.BoxGeometry(1, 1, 1);
 export const crystal = new THREE.IcosahedronGeometry(1, 0);
 const cylinder = new THREE.CylinderGeometry(1, 1, 1, 8);
@@ -56,11 +57,11 @@ export function makePlayer(scene, texture) {
   const shadow = groundDisc(scene, 0x090e17, 0.34, 0.63);
   shadow.scale.y *= 0.7;
   const navy = matte(0x263440);
-  const cloth = matte(0x319c98);
-  const blue = matte(0x2c6a79);
-  const gold = matte(0xd99147);
+  const cloth = matte(P.coat);
+  const blue = matte(0xbfbeb1);
+  const gold = matte(P.gold);
   const straw = matte(0xe6b265);
-  const red = matte(0xbc5a49);
+  const red = matte(P.scarf);
   const face = matte(0xf2a978);
   const shoes = [];
   for (const side of [-1, 1]) {
@@ -91,7 +92,7 @@ export function makePlayer(scene, texture) {
   charm.position.set(0.63, 1.71, 0.27);
   body.add(charm);
   mesh(charm, cylinder, gold, 0, -0.16, 0, 0.025, 0.32, 0.025);
-  mesh(charm, sphere, new THREE.MeshBasicMaterial({ color: 0xffc060 }), 0, -0.37, 0, 0.17, 0.21, 0.17);
+  mesh(charm, sphere, new THREE.MeshBasicMaterial({ color: P.lanternCore }), 0, -0.37, 0, 0.17, 0.21, 0.17);
   mesh(charm, cylinder, gold, 0, -0.19, 0, 0.12, 0.06, 0.12);
   mesh(charm, cylinder, gold, 0, -0.55, 0, 0.12, 0.06, 0.12);
   const halo = glow(charm, texture, 0xffab51, 2.05, 0.82);
@@ -102,14 +103,16 @@ export function makePlayer(scene, texture) {
   return { root, body, shadow, shoes, charm };
 }
 
-const timber = matte(0x604041);
+const timber = matte(P.wood);
 const lacquer = matte(0xb95146);
-const brass = matte(0xba864b);
+const brass = matte(P.gold);
 const stone = matte(0x657074);
-const shadeBody = matte(0x271936);
-const shadeTentacle = matte(0x422952);
+const shadeBody = matte(P.shade);
+const shadeStunned = matte(P.shadeStun);
+const shadeTentacle = matte(P.shade);
 const eyes = new THREE.MeshBasicMaterial({ color: 0xf1bfff });
-const moteCore = new THREE.MeshBasicMaterial({ color: 0xffe5a0 });
+const moteCore = new THREE.MeshBasicMaterial({ color: P.mote });
+const lampCore = new THREE.MeshBasicMaterial({ color: P.lanternCore });
 
 export function makeLantern(texture) {
   const root = new THREE.Group();
@@ -123,8 +126,9 @@ export function makeLantern(texture) {
   mesh(root, box, lacquer, 0, 2.94, 0, 2.26, 0.21, 0.30);
   mesh(root, box, timber, 0, 3.10, 0, 2.53, 0.14, 0.38);
   mesh(root, cylinder, brass, 0, 2.63, 0, 0.046, 0.42, 0.046);
-  const paper = new THREE.MeshStandardMaterial({ color: 0xa34343, emissive: 0xf04c1c, emissiveIntensity: 0.15, flatShading: true });
+  const paper = new THREE.MeshLambertMaterial({ color: P.lanternOff, emissive: P.lantern, emissiveIntensity: 0, flatShading: true });
   mesh(root, new THREE.CapsuleGeometry(0.44, 0.44, 3, 10), paper, 0, 1.95, 0, 1, 1, 0.88);
+  const core = mesh(root, sphere, lampCore, 0, 1.91, 0, 0.32, 0.48, 0.415);
   for (const y of [1.43, 1.71, 2.20, 2.48]) {
     const width = y === 1.43 || y === 2.48 ? 0.32 : 0.445;
     mesh(root, new THREE.TorusGeometry(width, 0.025, 4, 10), brass, 0, y, 0, 1, 0.88, 1).rotation.x = Math.PI / 2;
@@ -139,19 +143,19 @@ export function makeLantern(texture) {
   root.add(light);
   const safe = groundDisc(root, 0xffb067, 0.48, T.safe_radius, ring);
   const warmth = groundDisc(root, 0xf6ab53, 0.085, T.safe_radius);
-  return { root, paper, halo, beacon, light, safe, warmth };
+  return { root, paper, core, halo, beacon, light, safe, warmth };
 }
 
 export function makeMote(texture) {
   const root = new THREE.Group();
   mesh(root, crystal, moteCore, 0, 0, 0, 0.10, 0.14, 0.10);
-  const halo = glow(root, texture, 0xffb54d, 1.24, 0.77);
+  const halo = glow(root, texture, P.moteGlow, 1.24, 0.77);
   return { root, halo };
 }
 
 export function makeShade(texture) {
   const root = new THREE.Group();
-  mesh(root, sphere, shadeBody, 0, 0.92, 0, 0.70, 0.94, 0.64);
+  const body = mesh(root, sphere, shadeBody, 0, 0.52, 0, 0.70, 0.94, 0.64);
   const arms = [];
   for (let i = 0; i < 5; i++) {
     const angle = i * Math.PI * 2 / 5;
@@ -163,7 +167,27 @@ export function makeShade(texture) {
     const eye = mesh(root, sphere, eyes, side * 0.22, 1.12, -0.60, 0.11, 0.067, 0.055);
     eye.rotation.z = side * 0.36;
   }
-  const aura = glow(root, texture, 0x8951d8, 4.1, 0.38);
+  const aura = glow(root, texture, P.shadeGlow, 4.1, 0.38);
   aura.position.y = 0.66;
-  return { root, arms, aura };
+  return { root, arms, aura, setStunned(stunned) { body.material = stunned ? shadeStunned : shadeBody; } };
+}
+
+const silk = new THREE.MeshLambertMaterial({ color: P.drifter, emissive: 0x546d89, emissiveIntensity: 0.32, side: THREE.DoubleSide });
+const charmPaper = matte(P.scarf);
+
+export function makeDrifter(texture) {
+  const root = new THREE.Group();
+  const ribbon = new THREE.PlaneGeometry(0.72, 3, 1, 14);
+  mesh(root, ribbon, silk);
+  const aura = glow(root, texture, P.drifter, 3.7, 0.48);
+  return { root, aura, ribbon, dispose() { ribbon.dispose(); } };
+}
+
+export function makeWindCharm(texture) {
+  const root = new THREE.Group();
+  mesh(root, box, brass, 0, 0, 0, 0.42, 0.77, 0.075);
+  mesh(root, box, charmPaper, 0, 0, 0, 0.34, 0.68, 0.082);
+  mesh(root, crystal, brass, 0, 0.04, 0.045, 0.095, 0.16, 0.02);
+  glow(root, texture, P.gold, 2.4, 0.5);
+  return { root };
 }

@@ -3,175 +3,309 @@ import { spawnSync } from 'node:child_process';
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { performance } from 'node:perf_hooks';
 import { fileURLToPath } from 'node:url';
 import { test } from 'node:test';
+import { DRIFTER_STATES, SHADE_STATES, TUNING as T } from '../src/core/config.ts';
+import { NIGHTS } from '../src/core/maps.js';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 const contract = JSON.parse(readFileSync(join(root, 'game.contract.json'), 'utf8'));
-const tuning = contract.tuning;
 const [runtime, script] = contract.headless_cmd.split(' ');
 assert.equal(runtime, 'node');
-const empty = { random_motes: false, random_shades: false };
+const quiet = { random_motes: false, random_shades: false, random_drifters: false, wind_enabled: false };
 
 function sandbox(t) {
-  const directory = mkdtempSync(join(tmpdir(), 'dao-den-long-'));
-  t.after(() => rmSync(directory, { recursive: true, force: true }));
-  let count = 0;
+  const dir = mkdtempSync(join(tmpdir(), 'dao-den-long-'));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  let serial = 0;
   const fixture = (name, value) => {
-    const path = join(directory, `${name} ${count++}.json`);
+    const path = join(dir, `${name} ${serial++}.json`);
     writeFileSync(path, typeof value === 'string' ? value : JSON.stringify(value));
     return path;
   };
-  function run(extra = [], ticks = 100, seed = 7, night = 1) {
-    const out = join(directory, `output ${count++}.jsonl`);
-    const child = spawnSync(process.execPath, [script, '--night', String(night), '--seed', String(seed), '--ticks', String(ticks), '--out', out, ...extra], {
-      cwd: root, encoding: 'utf8', timeout: 15_000,
-    });
+  function run({ night = 1, ticks = 100, every, seed = 7, scenario, inputs, extra = [] } = {}) {
+    const out = join(dir, `output ${serial++}.jsonl`);
+    const args = [script, '--night', String(night), '--seed', String(seed), '--ticks', String(ticks), '--out', out];
+    if (scenario !== undefined) args.push('--scenario', fixture('scenario', scenario));
+    if (inputs !== undefined) args.push('--inputs', fixture('inputs', inputs));
+    if (every !== undefined) args.push('--snapshot-every', String(every));
+    const start = performance.now();
+    const child = spawnSync(process.execPath, [...args, ...extra], { cwd: root, encoding: 'utf8', timeout: 30_000 });
+    const ms = performance.now() - start;
     assert.ifError(child.error);
-    const raw = existsSync(out) ? readFileSync(out, 'utf8') : undefined;
-    return { ...child, raw };
+    return { ...child, ms, raw: existsSync(out) ? readFileSync(out, 'utf8') : undefined };
   }
-  return { fixture, run };
+  return run;
 }
 
-function records(result) {
+const eventKeys = {
+  mote_picked: ['carried'], deposit: ['amount', 'deposited', 'lantern_id'], lantern_lit: ['lantern_id'],
+  pulse: ['stunned_ids'], shade_spawned: ['id'], game_over: ['reason', 'result'],
+  dash: [], charm_picked: ['charm_id', 'charm_ticks'], drifter_steal: ['amount', 'carried', 'drifter_id'],
+  drifter_drop: ['amount', 'drifter_id'], night_start: ['night'], paused: [], resumed: [],
+};
+
+function checkPositions(positions) {
+  for (const pos of positions) {
+    assert.equal(pos.length, 3);
+    assert.ok(pos.every(value => Number.isFinite(value) && value === Number(value.toFixed(3))));
+  }
+}
+
+function parse(result, night, every = 10) {
   assert.equal(result.status, 0, result.stderr);
   assert.equal(result.stdout, '');
   assert.equal(result.stderr, '');
   assert.ok(result.raw.endsWith('\n'));
   const lines = result.raw.trimEnd().split('\n').map(JSON.parse);
-  assert.equal(lines[0].type, 'snapshot');
-  const end = lines.at(-1);
+  const end = lines.pop();
   assert.deepEqual(Object.keys(end).sort(), ['score', 'state', 'ticks', 'type']);
   assert.equal(end.type, 'end');
-  assert.ok(['playing', 'won', 'lost'].includes(end.state));
-  let previousTick = 0;
-  for (const line of lines.slice(0, -1)) {
-    assert.ok(Number.isInteger(line.tick) && line.tick >= previousTick && line.tick <= end.ticks);
-    previousTick = line.tick;
+  assert.ok(['playing', 'paused', 'won', 'lost'].includes(end.state));
+  assert.equal(lines[0].type, 'snapshot');
+  assert.deepEqual(lines[1], { type: 'event', tick: 0, name: 'night_start', data: { night } });
+  let previous = 0;
+  const snapshots = [];
+  const events = [];
+  for (const line of lines) {
+    assert.ok(Number.isInteger(line.tick) && line.tick >= previous && line.tick <= end.ticks);
+    previous = line.tick;
     if (line.type === 'event') {
       assert.deepEqual(Object.keys(line).sort(), ['data', 'name', 'tick', 'type']);
-      assert.ok(line.tick > 0);
-      const keys = {
-        mote_picked: ['carried'], deposit: ['amount', 'deposited', 'lantern_id'], lantern_lit: ['lantern_id'],
-        pulse: ['stunned_ids'], player_hit: ['by', 'dropped', 'flames'], shade_spawned: ['id'], game_over: ['reason', 'result'],
-      };
-      assert.deepEqual(Object.keys(line.data).sort(), keys[line.name]);
-    } else {
-      assert.equal(line.type, 'snapshot');
-      assert.deepEqual(Object.keys(line).sort(), ['lanterns', 'motes', 'motes_active', 'player', 'score', 'shades', 'sim_tick', 'state', 'tick', 'time_left_s', 'type']);
-      assert.equal(line.tick, line.sim_tick);
-      assert.ok(['playing', 'won', 'lost'].includes(line.state));
-      assert.equal(line.lanterns.length, 5);
-      assert.equal(line.motes.length, line.motes_active);
-      for (const { pos } of [line.player, ...line.lanterns, ...line.shades, ...line.motes]) {
-        assert.equal(pos.length, 3);
-        assert.ok(pos.every(value => Number.isFinite(value) && value === Number(value.toFixed(3))));
-      }
+      const keys = line.name === 'player_hit'
+        ? (line.data.by === 'fall' ? ['by', 'dropped', 'flames', 'lost'] : ['by', 'dropped', 'flames']) : eventKeys[line.name];
+      assert.deepEqual(Object.keys(line.data).sort(), keys);
+      events.push(line);
+      continue;
     }
+    snapshots.push(line);
+    assert.equal(line.type, 'snapshot');
+    assert.equal(line.night, night);
+    assert.equal(line.tick, (snapshots.length - 1) * every);
+    assert.ok(line.sim_tick >= 0 && line.sim_tick <= line.tick);
+    assert.deepEqual(Object.keys(line).sort(), ['charms', 'drifters', 'lanterns', 'motes', 'motes_active', 'night', 'player', 'score', 'shades', 'sim_tick', 'state', 'tick', 'time_left_s', 'type', 'wind']);
+    assert.deepEqual(Object.keys(line.player).sort(), ['carried', 'charm_s', 'dash_cd_s', 'flames', 'grounded', 'invuln', 'pos', 'pulse_cd_s', 'vel']);
+    assert.equal(typeof line.player.invuln, 'boolean');
+    assert.equal(typeof line.player.grounded, 'boolean');
+    assert.deepEqual(Object.keys(line.wind).sort(), ['active', 'dir_deg']);
+    assert.equal(typeof line.wind.active, 'boolean');
+    assert.ok(Number.isFinite(line.wind.dir_deg));
+    assert.equal(line.lanterns.length, NIGHTS[night].lanterns.length);
+    assert.equal(line.motes_active, line.motes.length);
+    checkPositions([line.player.pos, line.player.vel, ...[...line.lanterns, ...line.shades, ...line.motes, ...line.drifters].map(entry => entry.pos)]);
+    assert.ok(line.shades.every(shade => SHADE_STATES.includes(shade.state)));
+    assert.ok(line.drifters.every(drifter => DRIFTER_STATES.includes(drifter.state) && Number.isInteger(drifter.stolen)));
+    assert.ok(line.charms.every(charm => typeof charm.available === 'boolean' && Number.isFinite(charm.respawn_s)));
+    assert.ok(line.motes.every(mote => (mote.kind === 'random' && mote.ttl_s === null) || (mote.kind === 'dropped' && mote.ttl_s >= 0)));
   }
-  return lines;
+  return { end, snapshots, events };
 }
 
-test('headless defaults to snapshots every ten and ends at the requested tick, including zero', t => {
-  const { fixture, run } = sandbox(t);
-  const scenario = fixture('clock', { ...empty, time_left_s: 13.25, player: { pos: [0.00049, 0, -0.12356] } });
-  const lines = records(run(['--scenario', scenario], 23, -2));
-  const snapshots = lines.filter(line => line.type === 'snapshot');
-  assert.deepEqual(snapshots.map(line => line.tick), [0, 10, 20]);
-  assert.deepEqual(snapshots[0].player.pos, [0, 0, -0.124]);
-  assert.equal(snapshots[2].time_left_s, 13.25 - 20 / 60);
-  assert.deepEqual(lines.at(-1), { type: 'end', ticks: 23, state: 'playing', score: 0 });
-  const zero = records(run(['--scenario', scenario], 0));
-  assert.deepEqual(zero.map(line => line.type), ['snapshot', 'end']);
-  assert.equal(zero.at(-1).ticks, 0);
+test('v1.1 JSONL shape, tick 0, every-ten snapshots and exact runtime of a partial replay in each night', t => {
+  const run = sandbox(t);
+  for (const night of [1, 2, 3]) {
+    const result = parse(run({ night, ticks: 23, scenario: { ...quiet, player: { pos: [1.00049, 0, -1.12356] } } }), night);
+    const { snapshots, end } = result;
+    assert.equal(snapshots[0].time_left_s, NIGHTS[night].duration);
+    assert.deepEqual(snapshots[0].player.pos, [1, 0, -1.124]);
+    assert.deepEqual(snapshots.map(line => line.tick), [0, 10, 20]);
+    assert.equal(snapshots[2].time_left_s, NIGHTS[night].duration - 20 / 60);
+    assert.deepEqual(end, { type: 'end', ticks: 23, state: 'playing', score: 0 });
+  }
+  assert.equal(parse(run({ ticks: 0 }), 1).end.ticks, 0);
 });
 
-test('headless consumes sparse input from tick k before producing snapshot k+1', t => {
-  const { fixture, run } = sandbox(t);
-  const scenario = fixture('turn', { ...empty, motes: [[tuning.pickup_radius + 0.08, 0, 0]] });
-  const inputs = fixture('controls', { inputs: [{ tick: 0, move: { x: 0, z: 1 }, cam_yaw_deg: 90 }, { tick: 2, move_x: 0, move_z: 0 }, { tick: 3, jump: true }] });
-  const lines = records(run(['--scenario', scenario, '--inputs', inputs, '--snapshot-every', '1'], 4));
-  assert.deepEqual(lines[0].player.pos, [0, 0, 0]);
-  assert.deepEqual(lines[1], { type: 'event', tick: 1, name: 'mote_picked', data: { carried: 1 } });
-  const moves = lines.filter(line => line.type === 'snapshot').map(line => line.player.pos);
-  assert.deepEqual(moves.slice(1, 4), [[0.1, 0, 0], [0.2, 0, 0], [0.2, 0, 0]]);
-  assert.ok(moves[4][1] > 0);
+test('sparse motion rotation, dash press/hold, pause press/hold and frozen cooldowns/TTL', t => {
+  const run = sandbox(t);
+  const scenario = { ...quiet, player: { pos: [0, 2, 0], dash_cd_ticks: 1, charm_ticks: 40, invuln_ticks: 20, pulse_cd_ticks: 60 },
+    motes: [{ pos: [10, 0, 0], kind: 'dropped', ttl_ticks: 400 }] };
+  const inputs = { inputs: [
+    { tick: 0, move: { x: 0, z: 1 }, cam_yaw_deg: 90, dash: true }, { tick: 1, dash: true, pause: true },
+    { tick: 2, dash: true, pause: true }, { tick: 12, pause: true }, { tick: 13, move_x: 0, move_z: 0 },
+  ] };
+  const { snapshots: s, events } = parse(run({ scenario, inputs, ticks: 23, every: 1 }), 1, 1);
+  assert.deepEqual(events.map(({ tick, name }) => [tick, name]), [[0, 'night_start'], [1, 'dash'], [2, 'paused'], [13, 'resumed']]);
+  assert.deepEqual(s[1].player.pos, [0.233, 2, 0]);
+  for (const tick of [2, 3, 12]) {
+    assert.equal(s[tick].state, 'paused');
+    assert.equal(s[tick].sim_tick, 1);
+    assert.equal(s[tick].time_left_s, s[1].time_left_s);
+    assert.deepEqual(s[tick].player, s[1].player);
+    assert.deepEqual(s[tick].motes, s[1].motes);
+  }
+  assert.equal(s[13].sim_tick, 2);
+  assert.equal(s[23].player.pos[1], 2);
+  assert.equal(s[23].player.pos[0], 2.8);
+  assert.equal(parse(run({ ticks: 3, inputs: [{ tick: 0, pause: true }] }), 1).end.state, 'paused');
 });
 
-test('sample replay wins early and repeats byte for byte', t => {
-  const { run } = sandbox(t);
-  const args = ['--scenario', 'tests/fixtures/scenario.json', '--inputs', 'tests/fixtures/inputs.json'];
-  const first = run(args, 240);
-  const second = run(args, 240);
-  const lines = records(first);
-  records(second);
-  assert.equal(first.raw, second.raw);
-  assert.equal(lines[0].lanterns.filter(lantern => lantern.lit).length, 4);
-  assert.equal(lines[0].score, 0);
-  assert.equal(lines[0].motes_active, 5);
-  assert.deepEqual(lines[1], { type: 'event', tick: 1, name: 'pulse', data: { stunned_ids: ['bong-muc-ben'] } });
-  assert.equal(lines.find(line => line.tick === 10).shades[0].state, 'stunned');
-  assert.deepEqual(lines.at(-2), { type: 'event', tick: 66, name: 'game_over', data: { result: 'won', reason: 'all_lit' } });
-  assert.deepEqual(lines.at(-1), { type: 'end', ticks: 66, state: 'won', score: 5 * tuning.score_mote + tuning.score_lantern + tuning.score_win });
+test('natural fall from the Night 1 edge, exact respawn, and fatal fall with no respawn', t => {
+  const run = sandbox(t);
+  const scenario = { ...quiet, player: { pos: [39.9, 0, 0], invuln_ticks: 400, carried: 8 } };
+  const inputs = [{ tick: 0, x: 1, dash: true }, { tick: 12, x: 0 }];
+  const { snapshots, events } = parse(run({ scenario, inputs, ticks: 160, every: 1 }), 1, 1);
+  const hit = events.find(event => event.name === 'player_hit');
+  assert.deepEqual(hit.data, { by: 'fall', flames: 2, dropped: 0, lost: 8 });
+  assert.ok(snapshots[hit.tick].player.pos[1] < -10);
+  assert.equal(events.filter(event => event.name === 'player_hit').length, 1);
+  assert.deepEqual(snapshots[hit.tick + 60].player.pos, [0, 0, 0]);
+  assert.deepEqual(snapshots[hit.tick + 60].player.vel, [0, 0, 0]);
+  assert.equal(snapshots[hit.tick + 60].player.invuln, true);
+  const fatal = parse(run({ scenario: { ...quiet, player: { pos: [42, -10.01, 0], flames: 1 } } }), 1);
+  assert.deepEqual(fatal.end, { type: 'end', ticks: 1, state: 'lost', score: 0 });
+  assert.equal(fatal.events.at(-1).data.reason, 'no_flames');
 });
 
-test('seeded IDs include scenario overrides, respawns and spawn events deterministically', t => {
-  const { fixture, run } = sandbox(t);
-  const scenario = fixture('seed', { motes: [], shades: [{ pos: [28, 0, 0] }, { id: 'S1', pos: [30, 0, 0] }], player: { pos: [0, 0, 25] }, lanterns: [{ id: 'L1', lit: true }] });
-  const args = ['--scenario', scenario, '--snapshot-every', '540'];
-  const tick = tuning.shade_first_spawn_s * tuning.tick_hz;
-  const first = run(args, tick + 2, 345);
-  const lines = records(first);
-  assert.equal(first.raw, run(args, tick + 2, 345).raw);
-  assert.notEqual(first.raw, run(args, tick + 2, 346).raw);
-  assert.equal(lines[0].motes_active, 0);
-  assert.deepEqual(lines[0].shades.map(shade => shade.id), ['S2', 'S1']);
-  assert.deepEqual(lines.find(line => line.type === 'event'), { type: 'event', tick, name: 'shade_spawned', data: { id: 'S3' } });
+test('both Night 2 jump pads, bamboo bridge and Night 3 summit pad have headless replays', t => {
+  const run = sandbox(t);
+  for (const [night, pad, velocity, targetHeight, ticks] of [[2, 0, 14, 0, 86], [2, 1, 14, 0, 86], [3, 0, 12, 6, 50]]) {
+    const scenario = { ...quiet, player: { pos: NIGHTS[night].pads[pad].pos } };
+    const inputs = [{ tick: 1, x: -1 }, { tick: ticks - 4, x: 0 }];
+    const { snapshots } = parse(run({ night, scenario, inputs, ticks, every: 1 }), night, 1);
+    assert.equal(snapshots[1].player.vel[1], velocity);
+    assert.equal(snapshots.at(-1).player.pos[1], targetHeight);
+    assert.equal(snapshots.at(-1).player.grounded, true);
+    if (night === 2) assert.ok(pad === 0 ? snapshots.at(-1).player.pos[0] >= 42 : snapshots.at(-1).player.pos[0] <= 28);
+  }
+  const { snapshots } = parse(run({ night: 2, scenario: { ...quiet, player: { pos: [26, 0, 0] } }, inputs: [{ tick: 0, x: 1 }], ticks: 200 }), 2);
+  assert.ok(snapshots.every(line => line.player.pos[1] === 0));
+  assert.ok(snapshots.at(-1).player.pos[0] > 44);
 });
 
-test('headless exits 0 for each losing result and supplies the exact game-over reason', t => {
-  const { fixture, run } = sandbox(t);
-  const cases = [
-    [fixture('dawn', { ...empty, time_left_s: 2 / 60 }), 'dawn', 2],
-    [fixture('hit', { ...empty, player: { flames: 1, carried: 4 }, shades: [{ pos: [0, 25, 0] }] }), 'no_flames', 1],
-  ];
-  for (const [file, reason, ticks] of cases) {
-    const lines = records(run(['--scenario', file]));
-    assert.deepEqual(lines.at(-2), { type: 'event', tick: ticks, name: 'game_over', data: { result: 'lost', reason } });
-    assert.deepEqual(lines.at(-1), { type: 'end', ticks, state: 'lost', score: 0 });
-    if (reason === 'no_flames') assert.deepEqual(lines[1].data, { by: 'shade', flames: 0, dropped: 2 });
+test('Night 3 lanes: both ramps ascend, ledges descend, and the two-thirds wind markers are deterministic', t => {
+  const run = sandbox(t);
+  for (const { x, z } of NIGHTS[3].ramps) {
+    const scenario = { ...quiet, player: { pos: [31 * x, 0, 31 * z] } };
+    const inputs = [{ tick: 0, x: -x, z: -z }, { tick: 80, x: 0, z: 0 }];
+    const { snapshots } = parse(run({ night: 3, scenario, inputs, ticks: 100 }), 3);
+    assert.ok(snapshots.some(line => line.player.pos[1] > 0 && line.player.pos[1] < 3));
+    assert.equal(snapshots.at(-1).player.pos[1], 3);
+  }
+  const drop = parse(run({ night: 3, scenario: { ...quiet, player: { pos: [0, 6, -7.9] } }, inputs: [{ tick: 0, z: -1 }], ticks: 100 }), 3);
+  assert.equal(drop.snapshots.at(-1).player.pos[1], 0);
+  const wind = { night: 3, scenario: { ...quiet, wind_enabled: true, player: { pos: [0, 0, -27] } }, every: 60, ticks: 2160 };
+  const first = run(wind);
+  assert.equal(first.raw, run(wind).raw);
+  const { snapshots } = parse(first, 3, 60);
+  const at = tick => snapshots.find(snapshot => snapshot.tick === tick);
+  assert.equal(at(1680).wind.active, false);
+  assert.notEqual(at(1680).wind.dir_deg, 0);
+  assert.deepEqual(at(1800).wind, { active: true, dir_deg: at(1680).wind.dir_deg });
+  assert.deepEqual(at(2100).wind, { active: false, dir_deg: at(1680).wind.dir_deg });
+  assert.ok(Math.abs(Math.hypot(at(2100).player.pos[0], at(2100).player.pos[2] + 27) - 10) < 0.002);
+});
+
+test('all spawn schedules, unique positions and IDs, first interaction on a later tick', t => {
+  const run = sandbox(t);
+  for (const night of [1, 2, 3]) {
+    const opts = { night, ticks: 1320, every: 60, scenario: { wind_enabled: false, player: { invuln_ticks: 9000 } } };
+    const result = run(opts);
+    assert.equal(result.raw, run(opts).raw);
+    const { snapshots, events } = parse(result, night, 60);
+    const at = tick => snapshots.find(snapshot => snapshot.tick === tick);
+    assert.equal(new Set(at(0).motes.map(mote => JSON.stringify(mote.pos))).size, 20);
+    assert.equal(at(240).motes_active, 21);
+    assert.equal(at(1200).motes_active, night === 3 ? 25 : 24);
+    assert.deepEqual(at(300).shades.map(shade => [shade.id, shade.state]), [['S1', 'spawning'], ['S2', 'spawning']]);
+    assert.ok(at(300).shades.every(shade => Math.hypot(shade.pos[0] - at(300).player.pos[0], shade.pos[2] - at(300).player.pos[2]) >= 15));
+    assert.deepEqual(events.filter(event => event.name === 'shade_spawned').slice(0, 3).map(event => [event.tick, event.data.id]), [[300, 'S1'], [300, 'S2'], [300 + NIGHTS[night].shadeInterval, 'S3']]);
+    assert.equal(at(1140).drifters.length, 0);
+    assert.deepEqual(at(1200).drifters.map(drifter => [drifter.id, drifter.state]), night === 1 ? [] : [['D1', 'idle']]);
   }
 });
 
-test('invalid flags and malformed or invalid JSON exit 2, with diagnostics on stderr', t => {
-  const { fixture, run } = sandbox(t);
+test('strict event order from move to pickup/deposit/Pulse, then steal and shade hit, then terminal', t => {
+  const run = sandbox(t);
+  const scenario = { ...quiet, player: { carried: 9, flames: 1 }, time_left_s: 1 / 60, motes: [[0, 0, 0], [0, 2, 0]],
+    lanterns: [{ id: 'L1', pos: [0, 0, 0], deposited: 9 }], charms: [{ pos: [0, 0, 0] }],
+    shades: [{ id: 'S2', pos: [1, 0.8, 0] }, { id: 'S1', pos: [0.4, 0.8, 0] }],
+    drifters: [{ id: 'D2', pos: [0.6, 6, 0] }, { id: 'D1', pos: [0.6, 6, 0] }],
+  };
+  const input = [{ tick: 0, dash: true, interact: true, pulse: true }];
+  const { events, end, snapshots } = parse(run({ night: 2, scenario, inputs: input, every: 1 }), 2, 1);
+  assert.deepEqual(events.map(event => event.name), ['night_start', 'dash', 'mote_picked', 'charm_picked', 'deposit', 'lantern_lit', 'pulse', 'drifter_steal', 'drifter_steal', 'game_over']);
+  assert.equal(events[5].tick, 1);
+  assert.deepEqual(events[6].data.stunned_ids, ['S1', 'S2']);
+  assert.deepEqual(events.slice(7, 9).map(event => event.data.drifter_id), ['D1', 'D2']);
+  assert.equal(snapshots[1].player.flames, 1);
+  assert.equal(end.score, 120);
+  assert.equal(end.state, 'lost');
+
+  const second = { ...quiet, player: { carried: 9, flames: 1 }, shades: [{ id: 'S2', pos: [0.4, 0, 0] }, { id: 'S1', pos: [0.5, 0, 0] }], drifters: [{ pos: [0.5, 0, 0] }] };
+  const hit = parse(run({ night: 2, scenario: second, every: 1 }), 2, 1);
+  assert.deepEqual(hit.events.map(event => event.name), ['night_start', 'drifter_steal', 'player_hit', 'game_over']);
+  assert.equal(hit.events[2].data.dropped, 3);
+  assert.equal(hit.snapshots[1].shades[0].state, 'recoil');
+  assert.equal(hit.events[3].data.reason, 'no_flames');
+});
+
+test('Gió Lạc steals inside safe light and despite invulnerability, then drops recoverable motes via Pulse', t => {
+  const run = sandbox(t);
+  const scenario = { ...quiet, player: { carried: 10, invuln_ticks: 30 },
+    drifters: [{ id: 'D1', pos: [0.5, 0.8, 0] }], lanterns: [{ id: 'L1', pos: [0, 0, 0], lit: true }] };
+  const { snapshots, events } = parse(run({ night: 2, scenario, inputs: [{ tick: 1, pulse: true }], every: 1, ticks: 124 }), 2, 1);
+  assert.deepEqual(events.slice(1, 4).map(event => event.name), ['drifter_steal', 'pulse', 'drifter_drop']);
+  assert.equal(snapshots[2].drifters[0].stolen, 0);
+  assert.ok(snapshots[2].motes.every(mote => mote.ttl_s === 8 && mote.kind === 'dropped'));
+  assert.equal(snapshots[3].player.carried, 7);
+  assert.equal(snapshots[122].drifters[0].state, 'removed');
+  assert.equal(snapshots[123].drifters.length, 0);
+});
+
+test('Bùa Gió headless overrides, pickup, repeat dash, expiry and replenishment', t => {
+  const run = sandbox(t);
+  const scenario = { ...quiet, player: { pos: [35, 0, 0], dash_cd_ticks: 90 }, charms: [{ id: 'C1', available: true }] };
+  const inputs = [{ tick: 1, dash: true }, { tick: 3, dash: true }, { tick: 13, dash: true }];
+  const { snapshots, events } = parse(run({ night: 2, scenario, inputs, every: 1, ticks: 24 }), 2, 1);
+  assert.deepEqual(events.slice(1).map(({ tick, name }) => [tick, name]), [[1, 'charm_picked'], [2, 'dash'], [14, 'dash']]);
+  assert.equal(snapshots[1].player.charm_s, 10);
+  assert.deepEqual(snapshots[1].charms, [{ id: 'C1', available: false, respawn_s: 45 }]);
+  const respawn = parse(run({ night: 3, scenario: { ...quiet, player: { pos: [0, 0, -20] }, charms: [{ id: 'C2', pos: [0, 0, -20], respawn_ticks: 2 }] }, every: 1, ticks: 3 }), 3, 1);
+  assert.equal(respawn.events[1].tick, 2);
+  assert.equal(respawn.events[1].data.charm_id, 'C2');
+});
+
+test('partial deposits, dawn win bonus and early terminal behavior retain Night 1 regression coverage', t => {
+  const run = sandbox(t);
+  const scenario = { ...quiet, player: { carried: 7 }, time_left_s: 2 / 60, motes: [[0, 0, 0]],
+    lanterns: NIGHTS[1].lanterns.map(({ id }) => ({ id, lit: id !== 'L1', pos: [0, 0, 0], deposited: 2 })) };
+  const win = parse(run({ scenario, inputs: [{ tick: 1, interact: true }], every: 1 }), 1, 1);
+  assert.equal(win.snapshots[1].score, 0);
+  assert.equal(win.snapshots[2].time_left_s, 0);
+  assert.deepEqual(win.end, { type: 'end', ticks: 2, state: 'won', score: 330 });
+  assert.deepEqual(win.events.at(-1).data, { result: 'won', reason: 'all_lit' });
+});
+
+test('malformed/v1.1 invalid JSON, dates, controls and CLI flags exit 2 via stderr', t => {
+  const run = sandbox(t);
   const cases = [
-    [['--inputs', fixture('bad input json', '[')], /Cannot read inputs/],
-    [['--scenario', fixture('bad scenario json', '{')], /Cannot read scenario/],
-    [['--inputs', fixture('duplicate', [{ tick: 0 }, { tick: 0 }])], /strictly increasing/],
-    [['--inputs', fixture('decreasing', [{ tick: 7 }, { tick: 1 }])], /strictly increasing/],
-    [['--inputs', fixture('bad action', [{ tick: 0, jump: 'yes' }])], /expected a boolean/],
-    [['--scenario', fixture('bad pos', { motes: [[0, 0]] })], /expected \[x, y, z\]/],
-    [['--scenario', fixture('bad id', { lanterns: [{ id: 'L6' }] })], /expected a unique lantern ID/],
-    [['--snapshot-every', '0'], /requires an integer/],
-    [['--night', '2'], /repeated option/],
-    [['--extra', '0'], /Unknown/],
+    [{ inputs: '[' }, /Cannot read inputs/], [{ scenario: '{' }, /Cannot read scenario/],
+    [{ inputs: [{ tick: 0 }, { tick: 0 }] }, /strictly increasing/], [{ inputs: [{ tick: 7 }, { tick: 1 }] }, /strictly increasing/],
+    [{ inputs: [{ tick: 0, dash: 1 }] }, /dash.*boolean/], [{ inputs: [{ tick: 0, pause: 'p' }] }, /pause.*boolean/],
+    [{ scenario: { motes: [[0, 0]] } }, /expected \[x, y, z\]/],
+    [{ scenario: { player: { carried: 11 } } }, /carried/],
+    [{ scenario: { lanterns: [{ id: 'L6' }] } }, /expected a unique lantern ID/],
+    [{ night: 2, scenario: { shades: [{ state: 'flee', pos: [1, 0, 0] }] } }, /invalid shade state/],
+    [{ night: 3, scenario: { drifters: [{ state: 'stunned', pos: [1, 0, 0] }] } }, /invalid drifter state/],
+    [{ scenario: { random_drifters: 1 } }, /random_drifters.*boolean/],
+    [{ every: 0 }, /requires an integer/], [{ night: 4 }, /--night must be 1, 2 or 3/],
+    [{ ticks: -1 }, /--ticks requires an integer/], [{ seed: 1.25 }, /--seed requires an integer/],
+    [{ extra: ['--extra', '0'] }, /Unknown/],
   ];
-  for (const [args, diagnostic] of cases) {
-    const result = run(args);
-    assert.equal(result.status, 2);
+  for (const [options, diagnostic] of cases) {
+    const result = run(options);
+    assert.equal(result.status, 2, result.stderr);
     assert.match(result.stderr, diagnostic);
     assert.equal(result.stdout, '');
     assert.equal(result.raw, undefined);
   }
-  for (const [result, diagnostic] of [
-    [run([], 100, 7, 2), /--night must be 1/],
-    [run([], -1), /--ticks requires an integer/],
-    [run([], 100, 1.25), /--seed requires an integer/],
-  ]) {
-    assert.equal(result.status, 2);
-    assert.match(result.stderr, diagnostic);
-    assert.equal(result.raw, undefined);
-  }
+});
+
+test('full Night 3 headless with scheduled enemies and default JSONL cadence runs below 30 seconds', t => {
+  const result = sandbox(t)({ night: 3, ticks: 21_600, scenario: { wind_enabled: false, player: { invuln_ticks: 22_000 } } });
+  const { end, events } = parse(result, 3);
+  assert.deepEqual(end, { type: 'end', ticks: 21_600, state: 'lost', score: 0 });
+  assert.equal(events.at(-1).data.reason, 'dawn');
+  assert.ok(result.ms < 30_000, `took ${result.ms.toFixed(0)} ms`);
 });

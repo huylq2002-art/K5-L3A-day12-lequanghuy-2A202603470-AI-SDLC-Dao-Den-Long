@@ -1,6 +1,7 @@
-# Kiểm tra Test Contract v1.0
+# Kiểm tra Test Contract v1.1
 
 1. Đối chiếu từng khóa `tuning` với `src/core/config.ts` và chạy `npm test`.
-2. Chạy `headless_cmd` trong `game.contract.json` với seed, scenario và inputs mẫu. Parse riêng từng dòng JSONL. Xác nhận snapshot tick 0, tick định kỳ, `sim_tick`, tọa độ tối đa ba chữ số thập phân, tên và payload sự kiện, một dòng `end` cuối cùng.
-3. Chạy lại cùng tham số và so sánh từng byte, kể cả ID tự sinh. Kiểm tra exit code `0` cho cả giới hạn tick lẫn kết thúc sớm.
-4. Thử JSON lỗi, tick lặp hoặc giảm, sai kiểu và cờ CLI lỗi. Xác nhận thông báo trên stderr và exit code `2`.
+2. Chạy `headless_cmd` cho `--night 1`, `2` và `3`. Parse từng dòng JSONL. Kiểm tra snapshot tick 0, `night_start`, snapshot định kỳ, `wind`, trạng thái và các mảng `motes`, `drifters`, `charms`, độ chính xác ba chữ số của vector và một dòng `end` cuối.
+3. So sánh hai lượt cùng seed theo từng byte. Xác minh `tick` tăng khi `paused` và `sim_tick`, giờ, cooldown, TTL, gió cùng lịch sinh giữ nguyên. Đối chiếu thứ tự sự kiện và quy tắc mục tiêu mới chỉ tương tác được từ tick sau.
+4. Kiểm tra exit code `0` cho giới hạn tick và kết thúc sớm. Dùng bad input, sai đêm, tick không tăng và kiểu không hợp lệ để kiểm tra stderr và mã `2`.
+5. Chạy đủ 21.600 tick Đêm 3 ở cadence mặc định với scenario bảo đảm sống đến bình minh. Ghi thời gian thực tế và xác nhận dưới 30 giây.
