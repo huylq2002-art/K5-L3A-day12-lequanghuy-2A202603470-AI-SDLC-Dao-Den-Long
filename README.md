@@ -2,7 +2,7 @@
 
 **v1.0.0 · Phase 4 — Bình minh**
 
-**Video demo** [Dành chỗ cho liên kết video]
+**Video demo** https://github.com/huylq2002-art/K5-L3A-day12-lequanghuy-2A202603470-AI-SDLC-Dao-Den-Long/releases/download/v1.0.0/2026-11-21.01-16-24.mp4
 
 Theo Mây và lời Ông Đăng qua Đảo Bến, Đảo Cau và Đảo Chuông. Gom đom đóm, thắp đèn và châm dầu để giữ đủ ánh sáng đến Bình Minh. Đảo Cau có cầu tre và bục nhảy sang bờ kia. Đảo Chuông có ba tầng, dốc dẫn lên vành đá và những cơn gió mạnh.
 
