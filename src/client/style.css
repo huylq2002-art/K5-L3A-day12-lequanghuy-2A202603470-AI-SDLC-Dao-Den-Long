@@ -1,0 +1,181 @@
+:root {
+  font-family: 'Segoe UI', system-ui, sans-serif;
+  color: #f6ead5;
+  background: #0d1521;
+  color-scheme: dark;
+  font-synthesis: none;
+  --gold: #f9ca7f;
+  --muted: #b8b4b1;
+  --line: #c2996838;
+  --panel: #101722e8;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+body { margin: 0; }
+button { font: inherit; cursor: pointer; }
+[hidden] { display: none !important; }
+
+.game { height: 100dvh; position: relative; overflow: hidden; isolation: isolate; }
+.scene, .scene::after { position: absolute; inset: 0; }
+.scene::after {
+  content: '';
+  pointer-events: none;
+  background: linear-gradient(180deg, #080d18bc, transparent 20%, transparent 70%, #080d18a1),
+    radial-gradient(ellipse at 50% 48%, transparent 48%, #090e1952 100%);
+}
+.scene canvas { width: 100%; height: 100%; display: block; touch-action: none; cursor: grab; }
+.scene canvas:active { cursor: grabbing; }
+
+.game-header, .game-bottom {
+  position: absolute;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 27px 32px;
+  pointer-events: none;
+}
+.game-header { top: 0; }
+.game-bottom { bottom: 0; align-items: flex-end; }
+.identity { flex: 1; min-width: max-content; text-shadow: 0 3px 20px #03060c; }
+.identity p, .chapter {
+  color: var(--gold);
+  font-size: .77rem;
+  font-weight: 650;
+  letter-spacing: .19em;
+  margin: 0 0 4px;
+}
+.identity p span { font-size: .58em; margin: 0 4px; }
+.identity h1, dialog h2 {
+  font-family: Georgia, 'Times New Roman', serif;
+  font-weight: 400;
+  letter-spacing: -.035em;
+  font-size: clamp(1.9rem, 3vw, 3.1rem);
+  line-height: 1.04;
+  margin: 0;
+}
+.panel {
+  border: 1px solid var(--line);
+  background: var(--panel);
+  border-radius: 12px;
+  box-shadow: 0 12px 32px #06091147, inset 0 1px #ffffff06;
+}
+.hud { display: flex; padding: 12px 5px; }
+.stat {
+  display: grid;
+  align-content: start;
+  gap: 4px;
+  padding: 0 16px;
+  border-right: 1px solid var(--line);
+  white-space: nowrap;
+  min-width: 70px;
+}
+.stat:last-child { border-right: 0; }
+.stat > span { color: var(--muted); font-size: .83rem; }
+.stat strong { font-weight: 650; font-size: 1.16rem; font-variant-numeric: tabular-nums; }
+.gold { color: var(--gold); }
+.lamp-track { display: flex; gap: 4px; }
+.lamp-track i { width: 8px; height: 3px; border-radius: 2px; background: #8b74515f; }
+.lamp-track i.active { background: var(--gold); box-shadow: 0 0 8px #fbb358bb; }
+.flames { display: flex; gap: 6px; align-items: center; min-height: 1.45rem; }
+.flames i {
+  display: block;
+  width: 10px;
+  height: 13px;
+  transform: rotate(24deg);
+  border-radius: 65% 0 55% 55%;
+  background: #88572e65;
+}
+.flames i.active { background: linear-gradient(150deg, #fff0b5, #fb8e45); box-shadow: 0 0 9px #ff9f5170; }
+.top-actions { flex: 1; display: flex; justify-content: flex-end; gap: 8px; pointer-events: auto; }
+.top-actions button, #play-again {
+  border: 1px solid #bd945961;
+  border-radius: 8px;
+  background: #101722df;
+  padding: 8px 12px;
+  color: #f5e7cf;
+  font-size: .875rem;
+  white-space: nowrap;
+}
+.top-actions button:hover, .top-actions button:focus-visible { background: #343043; border-color: var(--gold); }
+#sound[aria-pressed='false'] { color: var(--muted); }
+
+.guide { padding: 15px 17px; }
+.objective { color: #ffe1a4; font-weight: 650; margin: 0; }
+.guide-copy { color: var(--muted); margin: 3px 0 12px; font-size: .875rem; }
+.controls { display: grid; grid-template-columns: auto auto; gap: 6px 14px; }
+.control { display: flex; align-items: center; gap: 5px; font-size: .83rem; color: #d4cbbe; }
+.control > span { white-space: nowrap; }
+.camera-help { grid-column: 1 / -1; }
+kbd {
+  display: inline-block;
+  border: 1px solid #bb917458;
+  border-radius: 4px;
+  background: #ead2aa13;
+  color: #ffdeab;
+  padding: 1px 5px;
+  font: 600 .75rem/1.55 system-ui, sans-serif;
+}
+.context { position: absolute; left: 50%; transform: translateX(-50%); bottom: 34px; text-align: center; }
+.hint { margin: 8px 0 0; padding: 8px 12px; white-space: nowrap; font-size: .9rem; }
+.hint kbd { margin-right: 5px; }
+.announcement { margin: 0; color: #ffe5af; font-size: 1rem; font-weight: 650; text-shadow: 0 1px 7px black, 0 0 12px black; }
+.announcement:empty { display: none; }
+.map-panel { padding: 8px 9px 9px; }
+.map-panel canvas { width: 130px; height: 130px; display: block; }
+.map-panel p { margin: 3px 0 0; font-size: .75rem; color: #d4cbbe; text-align: center; }
+.map-player { color: #fff1d2; margin-right: 3px; }
+.map-lamp { color: var(--gold); margin: 0 3px 0 8px; }
+
+dialog {
+  width: min(450px, calc(100% - 36px));
+  text-align: center;
+  color: #f6ead5;
+  background: radial-gradient(ellipse at 50% 0%, #292439, #101722 70%);
+  border: 1px solid #c69b686f;
+  border-radius: 20px;
+  padding: 40px 25px;
+  box-shadow: 0 24px 130px #070911;
+}
+dialog::backdrop { background: #080d19b5; }
+dialog h2 { margin: 12px 0; }
+#result-copy { color: #cbc4bd; }
+#result-score { display: block; color: var(--gold); margin: 20px 0; }
+#play-again { background: #efbe76; color: #211b21; font-weight: 700; }
+#play-again:hover { background: #ffe0a5; }
+.fatal { position: absolute; inset: 50% auto auto 50%; transform: translate(-50%, -50%); padding: 16px 20px; }
+
+@media (max-width: 1080px) {
+  .game-header, .game-bottom { padding: 20px; gap: 12px; }
+  .stat { padding-inline: 11px; }
+  .identity, .top-actions { flex: 0; }
+}
+@media (max-width: 820px) {
+  .game-header { flex-wrap: wrap; }
+  .hud { order: 3; }
+  .top-actions { margin-left: auto; }
+  .context { bottom: 146px; width: max-content; max-width: calc(100vw - 30px); }
+  .guide-copy { margin-bottom: 7px; }
+  .map-panel canvas { width: 102px; height: 102px; }
+}
+@media (max-width: 490px) {
+  .game-header, .game-bottom { padding: 12px; gap: 9px; }
+  .hud { width: 100%; justify-content: space-between; }
+  .stat { padding-inline: 6px; min-width: auto; }
+  .stat > span { font-size: .7rem; }
+  .stat strong { font-size: 1rem; }
+  .top-actions button { padding: 6px; font-size: .75rem; }
+  .guide { padding: 9px; }
+  .controls { gap: 4px 6px; }
+  .control, .guide-copy { font-size: .7rem; }
+  .map-panel { padding: 5px; }
+  .map-panel canvas { width: 80px; height: 80px; }
+  .map-panel p { font-size: .6rem; }
+}
+@media (max-width: 365px) {
+  .map-panel canvas { width: 64px; height: 64px; }
+  .control { gap: 3px; }
+  kbd { padding-inline: 3px; }
+}

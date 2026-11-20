@@ -1,0 +1,28 @@
+
+> dao-den-long@1.0.0 test
+> node --test
+
+✔ headless defaults to snapshots every ten and ends at the requested tick, including zero (252.7555ms)
+✔ headless consumes sparse input from tick k before producing snapshot k+1 (128.1816ms)
+✔ sample replay wins early and repeats byte for byte (237.8232ms)
+✔ seeded IDs include scenario overrides, respawns and spawn events deterministically (367.4898ms)
+✔ headless exits 0 for each losing result and supplies the exact game-over reason (199.7308ms)
+✔ invalid flags and malformed or invalid JSON exit 2, with diagnostics on stderr (1303.8336ms)
+✔ contract metadata and every tuning constant match the runtime (2.6445ms)
+✔ camera rotation, analog magnitude and normalized diagonal follow the contract (2.2707ms)
+✔ grounded jump and round island boundary are simulated in the core (0.4056ms)
+✔ XZ pickup and nearest unlit lantern are inclusive, with partial and final deposits (1.2646ms)
+✔ shades avoid lit zones at the boundary and find a route around them (8.0361ms)
+✔ a hit uses XZ, drops floor(carried × ratio) motes and starts invulnerability (1.3147ms)
+✔ Pulse pushes an in-range shade, stuns through its last tick and enforces cooldown (1.428ms)
+✔ Pulse cannot push a shade through an expanded light zone (0.4386ms)
+✔ win on all five lanterns, lose to last hit and lose at dawn (0.8176ms)
+✔ browser default seed can complete the actual island by following the firefly trails (12.679ms)
+ℹ tests 16
+ℹ suites 0
+ℹ pass 16
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2617.6953

@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#0d1521">
+    <meta name="description" content="Đêm 1 tại Đảo Bến. Theo dấu đom đóm và thắp sáng năm chiếc đèn lồng.">
+    <link rel="icon" href="data:,">
+    <title>Đảo Đèn Lồng · Đêm 1</title>
+  </head>
+  <body>
+    <main class="game" aria-label="Đảo Đèn Lồng">
+      <div id="scene" class="scene" aria-label="Không gian 3D của Đảo Bến"></div>
+      <header class="game-header">
+        <div class="identity">
+          <p>ĐÊM 1 <span>◆</span> ĐẢO BẾN</p>
+          <h1>Đảo Đèn Lồng</h1>
+        </div>
+        <section class="hud panel" aria-label="Trạng thái chuyến đi">
+          <div class="stat lamps">
+            <span>Đèn lồng</span><strong id="lit-count">0 / 5</strong>
+            <div id="lamp-track" class="lamp-track" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
+          </div>
+          <div class="stat"><span>Ánh sáng</span><strong class="gold" id="carried">0</strong></div>
+          <div class="stat"><span>Ngọn lửa</span><strong id="flames" class="flames" aria-label="3 ngọn lửa"></strong></div>
+          <div class="stat"><span>Đến bình minh</span><strong id="clock">05:00</strong></div>
+          <div class="stat"><span>Điểm</span><strong id="score">0</strong></div>
+        </section>
+        <div class="top-actions">
+          <button type="button" id="sound" aria-pressed="true">Âm thanh</button>
+          <button type="button" id="restart">Chơi lại</button>
+        </div>
+      </header>
+
+      <div class="game-bottom">
+        <section class="guide panel" aria-label="Điều khiển">
+          <p class="objective">Thắp sáng năm đèn lồng</p>
+          <p class="guide-copy">Theo dấu đom đóm để gom ánh sáng.</p>
+          <div class="controls">
+            <div class="control"><span><kbd>WASD</kbd> <kbd>↑↓←→</kbd></span> Di chuyển</div>
+            <div class="control"><kbd>Space</kbd> Nhảy</div>
+            <div class="control"><kbd>E</kbd> Thắp đèn</div>
+            <div class="control"><kbd>F</kbd> Tỏa sáng</div>
+            <div class="control camera-help"><kbd>Q</kbd> <kbd>R</kbd> hoặc kéo chuột để xoay camera</div>
+          </div>
+        </section>
+        <div class="context">
+          <p id="announcement" class="announcement" role="status"></p>
+          <p id="interact-hint" class="panel hint" hidden><kbd>E</kbd> <span id="interact-text"></span></p>
+        </div>
+        <aside class="map-panel panel" aria-label="Bản đồ Đảo Bến">
+          <canvas id="map" width="288" height="288" aria-hidden="true"></canvas>
+          <p><span class="map-player">▲</span> Mây <span class="map-lamp">◆</span> Đèn lồng</p>
+        </aside>
+      </div>
+
+      <dialog id="result" aria-labelledby="result-title">
+        <p class="chapter">ĐÊM 1 · ĐẢO BẾN</p>
+        <h2 id="result-title"></h2>
+        <p id="result-copy"></p>
+        <strong id="result-score"></strong>
+        <button id="play-again" type="button">Chơi lại</button>
+      </dialog>
+      <p id="fatal" class="fatal panel" role="alert" hidden></p>
+    </main>
+    <script type="module" src="/src/client/main.js"></script>
+  </body>
+</html>

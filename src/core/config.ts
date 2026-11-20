@@ -1,0 +1,38 @@
+export const TUNING = Object.freeze({
+  tick_hz: 60,
+  night1_duration_s: 300,
+  island_radius: 36,
+  move_speed_mps: 6,
+  jump_speed_mps: 6.7,
+  gravity_mps2: 19,
+  starting_flames: 3,
+  pickup_radius: 1.45,
+  interact_radius: 2.5,
+  lantern_cost: 5,
+  safe_radius: 5,
+  shade_speed_mps: 3.4,
+  shade_hit_radius: 1.05,
+  shade_first_spawn_s: 18,
+  shade_spawn_interval_s: 30,
+  max_shades: 6,
+  invuln_s: 1.5,
+  hit_drop_ratio: 0.5,
+  pulse_cost: 2,
+  pulse_radius: 6,
+  pulse_push_m: 4,
+  pulse_stun_s: 2,
+  pulse_cooldown_s: 3,
+  score_mote: 10,
+  score_lantern: 200,
+  score_win: 500,
+});
+
+export const TICK_S = 1 / TUNING.tick_hz;
+
+export const LANTERN_LAYOUT = Object.freeze([
+  { id: 'L1', pos: Object.freeze([0, 0, 25]) },
+  { id: 'L2', pos: Object.freeze([24, 0, 8]) },
+  { id: 'L3', pos: Object.freeze([15, 0, -21]) },
+  { id: 'L4', pos: Object.freeze([-15, 0, -21]) },
+  { id: 'L5', pos: Object.freeze([-24, 0, 8]) },
+].map(Object.freeze));

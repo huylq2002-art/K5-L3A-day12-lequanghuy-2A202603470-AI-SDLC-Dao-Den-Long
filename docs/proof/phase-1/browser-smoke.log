@@ -1,0 +1,5 @@
+Chrome/157.0.8103.80 | Node v24.16.0 | win32
+PASS Chrome WebGL 2, production build and initial HUD
+PASS Camera controls, movement, pickup, jump input, pulse, lantern interaction and Web Audio
+PASS Damage, defeat dialog and both restart controls
+PASS No JavaScript or WebGL errors
