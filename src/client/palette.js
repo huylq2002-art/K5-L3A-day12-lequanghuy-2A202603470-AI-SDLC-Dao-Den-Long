@@ -1,6 +1,6 @@
 export const PALETTE = Object.freeze({
   sky: 0x0e1430, mist: 0x1b2350, grass: 0x2f5d50, sand: 0xc9b48a, wood: 0x6b4a2f, sea: 0x12384a,
   lantern: 0xffb347, lanternCore: 0xffe9b0, lanternOff: 0x5b5f6e, mote: 0xfff6c2, moteGlow: 0xffe58a,
-  shade: 0x120a1a, shadeGlow: 0x7a3cff, shadeStun: 0x3a3450, coat: 0xe8e2d0, scarf: 0xc8102e,
+  shade: 0x120a1a, shadeGlow: 0x7a3cff, shadeAccessible: 0x00b3ff, shadeStun: 0x3a3450, coat: 0xe8e2d0, scarf: 0xc8102e,
   gold: 0xf2c14e, drifter: 0x8fa3b8, danger: 0xff5a5f, text: 0xf5f1e6,
 });

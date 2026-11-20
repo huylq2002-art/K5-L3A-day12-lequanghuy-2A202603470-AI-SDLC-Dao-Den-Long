@@ -1,6 +1,7 @@
 import { TICK_S, TUNING as T, toTicks } from './config.ts';
 import { groundHeight } from './maps.js';
 import { byId, directionXZ, distanceXZ, inReach, offsetXZ } from './math.js';
+import { capacityFor } from './player.js';
 
 const TURN = Math.PI * 2;
 
@@ -57,8 +58,9 @@ export function decrementPopulation(state) {
 export function pickItems(state, emit) {
   const { player } = state;
   if (player.falling) return;
+  const capacity = capacityFor(player.successfulLights);
   state.motes = state.motes.filter(mote => {
-    if (player.carried >= T.max_carried || !inReach(player.pos, mote.pos, T.pickup_radius, T.pickup_height_m)) return true;
+    if (player.carried >= capacity || !inReach(player.pos, mote.pos, T.pickup_radius, T.pickup_height_m)) return true;
     player.carried++;
     emit('mote_picked', { carried: player.carried });
     return false;

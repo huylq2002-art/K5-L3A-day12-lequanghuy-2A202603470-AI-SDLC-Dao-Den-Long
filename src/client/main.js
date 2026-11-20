@@ -2,6 +2,7 @@ import './style.css';
 import { TICK_S } from '../core/config.ts';
 import { advanceNight, createCampaign, recordResult, startNight } from '../core/campaign.js';
 import { createGame, nearestUnlitLantern, stepGame } from '../core/game.js';
+import { requiredLit } from '../core/lanterns.js';
 import { NIGHTS } from '../core/maps.js';
 import { gameAudio } from './audio.js';
 import { createHud } from './hud.js';
@@ -13,18 +14,19 @@ const SETTINGS_KEY = 'dao-den-long-settings';
 const ACTIONS = { Space: 'jump', KeyE: 'interact', KeyF: 'pulse', ShiftLeft: 'dash', ShiftRight: 'dash', Escape: 'pause', KeyP: 'pause' };
 const CONTROLS = new Set(['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'KeyQ', 'KeyR', ...Object.keys(ACTIONS)]);
 const STORIES = [
-  'Mây à, hãy mang đom đóm đến năm chiếc đèn. Khi Bóng Mực đến, con có thể trú trong vùng sáng.',
-  'Cầu tre dẫn sang bờ bên kia. Bục nhảy cũng đưa con qua biển mây. Hãy coi chừng Gió Lạc khi túi đã đầy.',
-  'Hãy tìm dốc để lên vành đá và dùng bục nhảy tới tháp chuông. Khi lá bắt đầu bay, cơn gió mạnh đã gần kề.',
+  'Mây à, giữ ít nhất ba đèn sáng đến bình minh. Đèn sắp cạn dầu sẽ nhấp nháy và Bóng Mực có thể đến hút dầu.',
+  'Cầu tre và bục nhảy dẫn con sang bờ bên kia. Giữ bốn đèn sáng và châm dầu khi túi còn đom đóm.',
+  'Dốc và bục nhảy dẫn lên tháp chuông. Giữ năm đèn sáng đến bình minh và coi chừng khi lá bắt đầu bay.',
 ];
 const node = id => document.getElementById(id);
 
 function readSettings() {
-  const settings = { volume: 75, sensitivity: 100 };
+  const settings = { volume: 75, sensitivity: 100, accessiblePalette: false };
   try {
     const saved = JSON.parse(localStorage.getItem(SETTINGS_KEY));
     if (Number.isFinite(saved?.volume)) settings.volume = Math.max(0, Math.min(100, saved.volume));
     if (Number.isFinite(saved?.sensitivity)) settings.sensitivity = Math.max(25, Math.min(200, saved.sensitivity));
+    settings.accessiblePalette = saved?.accessiblePalette === true;
   } catch { /* Settings may be unavailable in private browsing. */ }
   return settings;
 }
@@ -105,8 +107,8 @@ function start(view) {
       return;
     }
     const messages = {
-      all_lit: [`${game.map.name} đã sáng!`, 'Tất cả đèn lồng đã được thắp sáng.'],
-      dawn: ['Bình minh đã đến', 'Vẫn còn đèn lồng chưa được thắp sáng.'],
+      dawn_survived: [`${game.map.name} đã sáng!`, 'Mây đã giữ đủ đèn sáng đến bình minh.'],
+      dawn: ['Bình minh đã đến', `Cần ít nhất ${requiredLit(game.lanterns.length)} đèn sáng khi trời sáng.`],
       no_flames: ['Ngọn lửa đã tắt', 'Mây đã mất ngọn lửa cuối cùng.'],
     };
     const [title, detail] = messages[game.reason];
@@ -130,6 +132,19 @@ function start(view) {
   node('menu-settings').onclick = () => { settingsParent = 'menu'; show('settings'); };
   node('pause-settings').onclick = () => { settingsParent = 'pause'; show('settings'); };
   node('settings-back').onclick = () => show(settingsParent);
+  const persistSettings = () => {
+    try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)); } catch { /* Storage is optional. */ }
+  };
+  const palette = node('accessible-palette');
+  const applyPalette = () => { document.documentElement.dataset.accessiblePalette = String(settings.accessiblePalette); };
+  palette.checked = settings.accessiblePalette;
+  palette.onchange = () => {
+    settings.accessiblePalette = palette.checked;
+    applyPalette();
+    persistSettings();
+    hud.reset();
+  };
+  applyPalette();
   for (const name of ['volume', 'sensitivity']) {
     const input = node(name);
     const output = node(`${name}-value`);
@@ -139,7 +154,7 @@ function start(view) {
       settings[name] = Number(input.value);
       output.value = `${settings[name]}%`;
       audio.setLevel(settings.volume / 100);
-      try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)); } catch { /* Storage is optional. */ }
+      persistSettings();
     };
   }
 
@@ -201,17 +216,19 @@ function start(view) {
       if (name === 'paused') { clearInput(); show('pause'); }
       if (name === 'resumed') { clearInput(); show('play'); }
       if (name === 'pulse') view.pulse(game.player.pos, game.simTick * TICK_S);
-      if (name === 'lantern_lit') hud.announce(`Đèn ${data.lantern_id.slice(1)} đã sáng`, timestamp);
+      if (name === 'lantern_lit') hud.announce(`Đèn ${data.lantern_id.slice(1)} ${data.relight ? 'đã sáng lại' : 'đã sáng'}`, timestamp);
+      if (name === 'refuel') hud.announce(`Đã châm dầu đèn ${data.lantern_id.slice(1)}`, timestamp);
+      if (name === 'lantern_out') hud.announce(`Đèn ${data.lantern_id.slice(1)} đã cạn dầu`, timestamp, true);
       if (name === 'charm_picked') hud.announce('Đã nhận Bùa Gió', timestamp);
-      if (name === 'player_hit') hud.announce(data.by === 'fall' ? 'Mây rơi xuống biển mây' : 'Mây mất một ngọn lửa', timestamp);
-      if (name === 'drifter_steal') hud.announce(`Gió Lạc cướp ${data.amount} đom đóm`, timestamp);
+      if (name === 'player_hit') hud.announce(data.by === 'fall' ? 'Mây rơi xuống biển mây' : 'Mây mất một ngọn lửa', timestamp, true);
+      if (name === 'drifter_steal') hud.announce(`Gió Lạc cướp ${data.amount} đom đóm`, timestamp, true);
       if (name === 'game_over') result();
     }
     if (game.simTick === simTick || screen !== 'play') return;
     if (game.player.jumped) audio.play('jump');
     if (!warning && game.wind.warning) {
       audio.play('wind');
-      hud.announce('Gió mạnh sắp đến', timestamp);
+      hud.announce('Gió mạnh sắp đến', timestamp, true);
     }
     const seconds = Math.ceil(game.timeLeft);
     if (seconds > 0 && seconds <= 10 && seconds !== lastCountdown) {
@@ -234,10 +251,10 @@ function start(view) {
       }
     }
     const time = screen === 'menu' ? timestamp / 1000 : game.simTick * TICK_S;
-    view.render(game, orbit, time);
+    view.render(game, orbit, time, settings.accessiblePalette);
     if (screen === 'play') {
       const marker = view.outsideTarget(nearestUnlitLantern(game, Infinity)?.pos);
-      hud.draw(game, timestamp, marker);
+      hud.draw(game, timestamp, marker, settings.accessiblePalette);
     }
     requestAnimationFrame(frame);
   }

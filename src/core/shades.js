@@ -1,4 +1,5 @@
 import { TICK_S, TUNING as T, toTicks } from './config.ts';
+import { drainTarget, lowFuel, nearestLantern } from './lanterns.js';
 import { groundHeight, towerBlocks } from './maps.js';
 import { byId, directionXZ, distanceXZ, inReach, offsetXZ } from './math.js';
 import { dropFromHit } from './population.js';
@@ -23,7 +24,7 @@ export function createShade(state, options) {
     : null;
   return {
     id: options.id ?? state.nextShadeId(), pos: [...options.pos], state: kind,
-    remaining, push,
+    remaining, push, targetLanternId: options.target_lantern_id ?? null, drainTicks: 0, justRecovered: false,
     escape: null, angle: state.random() * TAU, skipContact: false,
   };
 }
@@ -31,6 +32,7 @@ export function createShade(state, options) {
 export function decrementShades(state) {
   for (const shade of state.shades) {
     if (shade.remaining > 0) shade.remaining--;
+    shade.justRecovered = shade.state === 'stunned' && !shade.remaining;
     if (!shade.remaining && (shade.state === 'spawning' || shade.state === 'stunned' || (shade.state === 'recoil' && !shade.push))) {
       shade.state = 'wander';
     }
@@ -88,24 +90,38 @@ function escapePoint(pos, lamps, map) {
 
 export function updateSafeZones(state, lamps) {
   for (const shade of state.shades) {
-    if (!insideSafeZone(shade.pos, lamps, BOUNDARY)) {
-      shade.escape = null;
+    if (!insideSafeZone(shade.pos, lamps)) {
+      if (!shade.escape?.target || shade.escape.remaining <= 0) shade.escape = null;
       continue;
     }
+    if (shade.state === 'drain') leaveDrain(shade, 'wander');
     if (!shade.escape?.target || insideSafeZone(shade.escape.target, lamps, BOUNDARY)) {
       shade.escape = { target: escapePoint(shade.pos, lamps, state.map), remaining: shade.escape?.remaining ?? T.shade_eject_ticks };
     }
   }
 }
 
-export function pulseShades(state, inPulse) {
+function leaveDrain(shade, nextState) {
+  shade.state = nextState;
+  shade.targetLanternId = null;
+  shade.drainTicks = 0;
+}
+
+function startDrain(shade, lamp) {
+  shade.state = 'drain';
+  shade.targetLanternId = lamp.id;
+  shade.drainTicks = 0;
+  shade.skipContact = true;
+}
+
+export function pulseShades(state, inPulse, drainingBeforeTick) {
   const ids = [];
   for (const shade of state.shades) {
     if (!inPulse(shade.pos)) continue;
-    shade.state = 'stunned';
+    leaveDrain(shade, 'stunned');
     shade.remaining = toTicks(T.pulse_stun_s);
     shade.push = makePush(state.player.pos, shade.pos, T.pulse_push_m, T.pulse_push_ticks);
-    state.score += T.score_pulse_shade;
+    state.score += drainingBeforeTick.has(shade) ? T.score_pulse_drain : T.score_pulse_shade;
     ids.push(shade.id);
   }
   return ids;
@@ -120,9 +136,9 @@ function applyPush(state, shade, lamps) {
   if (--push.remaining === 0 || blocked) shade.push = null;
 }
 
-function tryChase(state, shade, lamps, distance, step) {
+function approach(state, shade, target, lamps, step) {
   const { pos } = shade;
-  const target = state.player.pos;
+  const distance = distanceXZ(pos, target);
   const angle = Math.atan2(target[2] - pos[2], target[0] - pos[0]);
   const move = turn => moveOnGround(state.map, pos, offsetXZ(pos, angle + turn, Math.min(step, distance)), lamps);
   let best = move(0);
@@ -145,6 +161,14 @@ export function moveShades(state, lamps) {
   const step = state.map.shadeSpeed * TICK_S;
   for (const shade of state.shades) {
     shade.skipContact = true;
+    const distance = distanceXZ(shade.pos, state.player.pos);
+    let lostDrainTarget = false;
+    if (shade.state === 'drain') {
+      const target = drainTarget(state.lanterns, shade);
+      if (target && (state.player.falling || distance > T.drain_interrupt_radius)) continue;
+      lostDrainTarget = !target;
+      leaveDrain(shade, lostDrainTarget ? 'wander' : 'chase');
+    }
     if (shade.escape) {
       const { target, remaining } = shade.escape;
       if (target) {
@@ -160,12 +184,24 @@ export function moveShades(state, lamps) {
       if (shade.state === 'recoil' && !shade.remaining && !shade.push) shade.state = 'wander';
       continue;
     }
+    if (lostDrainTarget || shade.justRecovered) continue;
+    const weakNearby = shade.state === 'wander' && nearestLantern(state.lanterns, shade.pos, T.drain_radius, lowFuel);
+    if (weakNearby) {
+      startDrain(shade, weakNearby);
+      continue;
+    }
     shade.skipContact = false;
-    const distance = distanceXZ(shade.pos, state.player.pos);
     const threshold = shade.state === 'chase' ? T.shade_forget_radius : T.shade_detect_radius;
     shade.state = !state.player.falling && distance <= threshold ? 'chase' : 'wander';
     if (shade.state === 'chase') {
-      shade.pos = tryChase(state, shade, lamps, distance, step);
+      shade.pos = approach(state, shade, state.player.pos, lamps, step);
+      continue;
+    }
+    const weak = nearestLantern(state.lanterns, shade.pos, Infinity, lowFuel);
+    const lamp = weak ?? nearestLantern(state.lanterns, shade.pos, Infinity, entry => !entry.lit);
+    if (lamp) {
+      if (!weak || distanceXZ(lamp.pos, shade.pos) > T.drain_radius) shade.pos = approach(state, shade, lamp.pos, lamps, step);
+      if (weak && distanceXZ(lamp.pos, shade.pos) <= T.drain_radius) startDrain(shade, lamp);
       continue;
     }
     const next = moveOnGround(state.map, shade.pos, offsetXZ(shade.pos, shade.angle, step), lamps);

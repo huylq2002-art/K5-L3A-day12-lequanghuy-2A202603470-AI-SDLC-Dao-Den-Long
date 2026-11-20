@@ -1,5 +1,7 @@
 import { DRIFTER_STATES, SHADE_STATES, TUNING as T } from '../core/config.ts';
+import { lanternCost } from '../core/lanterns.js';
 import { NIGHTS } from '../core/maps.js';
+import { capacityFor } from '../core/player.js';
 
 function check(condition, path, expectation) {
   if (!condition) throw new Error(`${path}: ${expectation}`);
@@ -50,11 +52,13 @@ export function validateScenario(scenario, night) {
   const flags = ['random_motes', 'random_shades', 'random_drifters', 'wind_enabled'];
   object(scenario, 'scenario', ['player', 'motes', 'shades', 'lanterns', 'drifters', 'charms', 'time_left_s', ...flags]);
   const { player, motes, shades, lanterns, drifters, charms } = scenario;
+  const lanternIds = new Set(NIGHTS[night].lanterns.map(lantern => lantern.id));
   if (player !== undefined) {
     const timers = ['invuln_ticks', 'dash_cd_ticks', 'pulse_cd_ticks', 'charm_ticks'];
-    object(player, 'scenario.player', ['pos', 'carried', 'flames', ...timers]);
+    object(player, 'scenario.player', ['pos', 'carried', 'flames', 'successful_lights', ...timers]);
     if ('pos' in player) position(player.pos, 'scenario.player.pos');
-    if ('carried' in player) count(player.carried, 'scenario.player.carried', T.max_carried);
+    if ('successful_lights' in player) count(player.successful_lights, 'scenario.player.successful_lights');
+    if ('carried' in player) count(player.carried, 'scenario.player.carried', capacityFor(player.successful_lights ?? 0));
     if ('flames' in player) count(player.flames, 'scenario.player.flames', T.starting_flames);
     for (const key of timers) if (key in player) count(player[key], `scenario.player.${key}`);
   }
@@ -73,10 +77,11 @@ export function validateScenario(scenario, night) {
     if ('ttl_ticks' in mote) count(mote.ttl_ticks, `${path}.ttl_ticks`);
   });
   entities(shades, 'shades', (shade, path) => {
-    object(shade, path, ['id', 'pos', 'state', 'state_ticks_left']);
+    object(shade, path, ['id', 'pos', 'state', 'state_ticks_left', 'target_lantern_id']);
     position(shade.pos, `${path}.pos`);
     if ('state' in shade) check(SHADE_STATES.includes(shade.state), `${path}.state`, 'invalid shade state');
     if ('state_ticks_left' in shade) count(shade.state_ticks_left, `${path}.state_ticks_left`);
+    if ('target_lantern_id' in shade) check(lanternIds.has(shade.target_lantern_id), `${path}.target_lantern_id`, 'expected a lantern ID for this night');
   });
   entities(drifters, 'drifters', (drifter, path) => {
     object(drifter, path, ['id', 'pos', 'state', 'stolen', 'state_ticks_left', 'flee_ticks']);
@@ -94,14 +99,21 @@ export function validateScenario(scenario, night) {
   });
   if (lanterns !== undefined) {
     array(lanterns, 'scenario.lanterns');
-    const ids = new Set(NIGHTS[night].lanterns.map(lantern => lantern.id));
     lanterns.forEach((lantern, index) => {
       const path = `scenario.lanterns[${index}]`;
-      object(lantern, path, ['id', 'pos', 'lit', 'deposited']);
-      check(ids.delete(lantern.id), `${path}.id`, `expected a unique lantern ID from L1 to L${NIGHTS[night].lanterns.length}`);
+      object(lantern, path, ['id', 'pos', 'lit', 'deposited', 'fuel', 'ever_lit']);
+      check(lanternIds.delete(lantern.id), `${path}.id`, `expected a unique lantern ID from L1 to L${NIGHTS[night].lanterns.length}`);
       if ('pos' in lantern) position(lantern.pos, `${path}.pos`);
       if ('lit' in lantern) boolean(lantern.lit, `${path}.lit`);
-      if ('deposited' in lantern) count(lantern.deposited, `${path}.deposited`, T.lantern_cost);
+      if ('ever_lit' in lantern) boolean(lantern.ever_lit, `${path}.ever_lit`);
+      if ('fuel' in lantern) {
+        number(lantern.fuel, `${path}.fuel`);
+        check(lantern.fuel >= 0 && lantern.fuel <= T.fuel_max, `${path}.fuel`, `expected fuel from 0 to ${T.fuel_max}`);
+      }
+      if ('deposited' in lantern) {
+        const lit = lantern.lit ?? lantern.fuel > 0;
+        count(lantern.deposited, `${path}.deposited`, lit ? T.lantern_cost : lanternCost(lantern.ever_lit));
+      }
     });
   }
   return scenario;

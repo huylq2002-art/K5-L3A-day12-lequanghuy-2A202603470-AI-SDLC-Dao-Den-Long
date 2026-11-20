@@ -110,9 +110,26 @@ const stone = matte(0x657074);
 const shadeBody = matte(P.shade);
 const shadeStunned = matte(P.shadeStun);
 const shadeTentacle = matte(P.shade);
-const eyes = new THREE.MeshBasicMaterial({ color: 0xf1bfff });
+const eyes = [P.shadeGlow, P.shadeAccessible].map(color => new THREE.MeshBasicMaterial({ color }));
+const outlines = [P.shadeGlow, P.shadeAccessible].map(color => new THREE.MeshBasicMaterial({ color, side: THREE.BackSide }));
 const moteCore = new THREE.MeshBasicMaterial({ color: P.mote });
 const lampCore = new THREE.MeshBasicMaterial({ color: P.lanternCore });
+const meterBack = new THREE.MeshBasicMaterial({ color: 0x131527 });
+const meterBorder = new THREE.MeshBasicMaterial({ color: 0xffe9b0 });
+
+const tearShape = new THREE.Shape();
+tearShape.moveTo(-0.25, 0.40);
+tearShape.lineTo(0.16, 0.15);
+tearShape.lineTo(0.02, 0.04);
+tearShape.lineTo(0.25, -0.21);
+tearShape.lineTo(-0.01, -0.12);
+tearShape.lineTo(-0.20, -0.37);
+tearShape.lineTo(-0.13, -0.04);
+tearShape.lineTo(-0.24, 0.13);
+tearShape.closePath();
+const tearGeometry = new THREE.ShapeGeometry(tearShape);
+const tornPaper = new THREE.MeshBasicMaterial({ color: 0x151622 });
+const tornEdge = new THREE.MeshBasicMaterial({ color: 0xb9afa5 });
 
 export function makeLantern(texture) {
   const root = new THREE.Group();
@@ -126,14 +143,27 @@ export function makeLantern(texture) {
   mesh(root, box, lacquer, 0, 2.94, 0, 2.26, 0.21, 0.30);
   mesh(root, box, timber, 0, 3.10, 0, 2.53, 0.14, 0.38);
   mesh(root, cylinder, brass, 0, 2.63, 0, 0.046, 0.42, 0.046);
+  const shell = new THREE.Group();
+  shell.position.y = 1.95;
+  root.add(shell);
   const paper = new THREE.MeshLambertMaterial({ color: P.lanternOff, emissive: P.lantern, emissiveIntensity: 0, flatShading: true });
-  mesh(root, new THREE.CapsuleGeometry(0.44, 0.44, 3, 10), paper, 0, 1.95, 0, 1, 1, 0.88);
-  const core = mesh(root, sphere, lampCore, 0, 1.91, 0, 0.32, 0.48, 0.415);
+  mesh(shell, new THREE.CapsuleGeometry(0.44, 0.44, 3, 10), paper, 0, 0, 0, 1, 1, 0.88);
+  const core = mesh(shell, sphere, lampCore, 0, -0.04, 0, 0.32, 0.48, 0.415);
   for (const y of [1.43, 1.71, 2.20, 2.48]) {
     const width = y === 1.43 || y === 2.48 ? 0.32 : 0.445;
-    mesh(root, new THREE.TorusGeometry(width, 0.025, 4, 10), brass, 0, y, 0, 1, 0.88, 1).rotation.x = Math.PI / 2;
+    mesh(shell, new THREE.TorusGeometry(width, 0.025, 4, 10), brass, 0, y - 1.95, 0, 1, 0.88, 1).rotation.x = Math.PI / 2;
   }
-  mesh(root, cylinder, lacquer, 0, 1.28, 0, 0.035, 0.27, 0.035);
+  mesh(shell, cylinder, lacquer, 0, -0.67, 0, 0.035, 0.27, 0.035);
+  const tears = new THREE.Group();
+  shell.add(tears);
+  for (const angle of [0, Math.PI / 2, Math.PI, -Math.PI / 2]) {
+    const rip = new THREE.Group();
+    rip.rotation.y = angle;
+    tears.add(rip);
+    const depth = Math.abs(Math.sin(angle)) > 0.5 ? 0.45 : 0.4;
+    mesh(rip, tearGeometry, tornEdge, 0, 0.02, depth, 0.83, 0.98, 1);
+    mesh(rip, tearGeometry, tornPaper, 0, 0.02, depth + 0.002, 0.74, 0.92, 1);
+  }
   const halo = glow(root, texture, 0xff8944, 2.15, 0.48);
   halo.position.y = 1.95;
   const beacon = glow(root, texture, 0xffbb69, 1.48, 0.80);
@@ -143,7 +173,14 @@ export function makeLantern(texture) {
   root.add(light);
   const safe = groundDisc(root, 0xffb067, 0.48, T.safe_radius, ring);
   const warmth = groundDisc(root, 0xf6ab53, 0.085, T.safe_radius);
-  return { root, paper, core, halo, beacon, light, safe, warmth };
+  const fuelBar = new THREE.Group();
+  fuelBar.position.y = 3.54;
+  root.add(fuelBar);
+  mesh(fuelBar, box, meterBorder, 0, 0, 0, 1.32, 0.22, 0.025);
+  mesh(fuelBar, box, meterBack, 0, 0, 0.015, 1.23, 0.14, 0.02);
+  const fuelFill = mesh(fuelBar, box, new THREE.MeshBasicMaterial({ color: P.lantern, transparent: true, depthWrite: false }), 0, 0, 0.034, 1.2, 0.11, 0.02);
+  mesh(fuelBar, box, meterBorder, -0.6 + 1.2 * T.low_fuel_threshold / T.fuel_max, 0, 0.051, 0.021, 0.14, 0.02);
+  return { root, shell, tears, paper, core, halo, beacon, light, safe, warmth, fuelBar, fuelFill };
 }
 
 export function makeMote(texture) {
@@ -155,6 +192,7 @@ export function makeMote(texture) {
 
 export function makeShade(texture) {
   const root = new THREE.Group();
+  const outline = mesh(root, sphere, outlines[0], 0, 0.52, 0, 0.731, 0.975, 0.671);
   const body = mesh(root, sphere, shadeBody, 0, 0.52, 0, 0.70, 0.94, 0.64);
   const arms = [];
   for (let i = 0; i < 5; i++) {
@@ -163,13 +201,22 @@ export function makeShade(texture) {
     arm.rotation.y = angle;
     arms.push(arm);
   }
-  for (const side of [-1, 1]) {
-    const eye = mesh(root, sphere, eyes, side * 0.22, 1.12, -0.60, 0.11, 0.067, 0.055);
+  const face = [-1, 1].map(side => {
+    const eye = mesh(root, sphere, eyes[0], side * 0.22, 1.12, -0.60, 0.11, 0.067, 0.055);
     eye.rotation.z = side * 0.36;
-  }
+    return eye;
+  });
   const aura = glow(root, texture, P.shadeGlow, 4.1, 0.38);
   aura.position.y = 0.66;
-  return { root, arms, aura, setStunned(stunned) { body.material = stunned ? shadeStunned : shadeBody; } };
+  return {
+    root, arms, aura,
+    style(stunned, accessible) {
+      body.material = stunned ? shadeStunned : shadeBody;
+      const palette = Number(accessible);
+      outline.material = outlines[palette];
+      for (const eye of face) eye.material = eyes[palette];
+    },
+  };
 }
 
 const silk = new THREE.MeshLambertMaterial({ color: P.drifter, emissive: 0x546d89, emissiveIntensity: 0.32, side: THREE.DoubleSide });

@@ -11,21 +11,24 @@ const built = await preview({ preview: { host: '127.0.0.1', port: 4278, strictPo
 const fixture = await createServer({
   server: { host: '127.0.0.1', port: 4279, strictPort: true },
   plugins: [{
-    name: 'phase2-browser-fixtures',
+    name: 'phase3-browser-fixtures',
     transform(code, id) {
       if (!id.endsWith('/src/core/campaign.js')) return;
       return code.replace('createGame(campaign.seed, {}, campaign.night)', `createGame(campaign.seed, {
         random_motes: false, random_shades: false, random_drifters: false,
-        time_left_s: location.search === '?dawn-test' ? 1/60 : undefined,
+        time_left_s: location.search === '?dawn-test' ? 1/60 : location.search === '?fuel-test' ? 20 : campaign.night === 3 ? 29 : 2,
         player: { pos: [[0,0,23.2],[35,0,0],[0,6,6]][campaign.night-1], carried: 10 },
-        lanterns: Array.from({length:campaign.night+4}, (_, i) => ({id:'L'+(i+1), lit:i>0, ...(i===0 && campaign.night===2 ? {pos:[35,0,1.5]} : {})}))
+        lanterns: location.search === '?fuel-test' ? [
+          { id: 'L1', lit: true, fuel: 29.8 }, { id: 'L2', pos: [2.4, 0, 25] }
+        ] : Array.from({length:campaign.night+4}, (_, i) => ({id:'L'+(i+1), lit:i>0 && location.search !== '?dawn-test', ...(i===0 && campaign.night===2 ? {pos:[35,0,1.5]} : {})})),
+        shades: location.search === '?fuel-test' ? [{pos: [1.4,0,25.5], state: 'drain', target_lantern_id: 'L1'}] : []
       }, campaign.night)`);
     },
   }],
 });
 await fixture.listen();
 mkdirSync('.npm-cache', { recursive: true });
-const profile = mkdtempSync(resolve('.npm-cache/phase2-browser-'));
+const profile = mkdtempSync(resolve('.npm-cache/phase3-browser-'));
 const defaultChrome = {
   win32: 'C:/Program Files/Google/Chrome/Application/chrome.exe',
   darwin: '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
@@ -101,7 +104,7 @@ try {
   const press = async code => { await key(code, 'keyDown'); await key(code, 'keyUp'); };
   const screenShot = async name => {
     const result = await send('Page.captureScreenshot', { format: 'png' });
-    writeFileSync(`.npm-cache/phase2-${name}.png`, Buffer.from(result.data, 'base64'));
+    writeFileSync(`.npm-cache/phase3-${name}.png`, Buffer.from(result.data, 'base64'));
   };
 
   await send('Page.enable');
@@ -126,9 +129,10 @@ try {
   await click('menu-settings');
   await waitFor(visible('settings-screen'));
   await evaluate("document.querySelector('#volume').value='61'; document.querySelector('#volume').dispatchEvent(new Event('input')); document.querySelector('#sensitivity').value='135'; document.querySelector('#sensitivity').dispatchEvent(new Event('input'))");
+  await click('accessible-palette');
   await send('Page.reload');
   await waitFor("document.querySelector('#scene canvas') && document.querySelector('#menu-screen:not([hidden])')");
-  assert.deepEqual(await evaluate("[document.querySelector('#volume').value, document.querySelector('#sensitivity').value]"), ['61', '135']);
+  assert.deepEqual(await evaluate("[document.querySelector('#volume').value, document.querySelector('#sensitivity').value, document.querySelector('#accessible-palette').checked, document.documentElement.dataset.accessiblePalette]"), ['61', '135', true, 'true']);
   await click('start-game');
   await waitFor(visible('intro-screen'));
   assert.equal(await label('intro-title'), 'Đảo Bến');
@@ -196,6 +200,10 @@ try {
     await screenShot(`fixture-night${night}`);
     await press('KeyE');
     await step();
+    assert.equal(await label('lit-count'), `${night+4} / ${night+4}`);
+    assert.equal(await label('carried'), '0 / 12');
+    assert.equal(await evaluate(visible('game-ui')), true);
+    await step(9, 250);
     if (night < 3) {
       await waitFor(visible('result-screen'));
       assert.ok((await label('result-title')).includes('đã sáng'));
@@ -220,8 +228,31 @@ try {
   await step(1, 0);
   await waitFor(visible('game-ui'));
   assert.equal(await label('night-label'), 'Đêm 1 · Đảo Bến');
+  await send('Page.navigate', { url: `${fixtureUrl}?fuel-test` });
+  await waitFor("location.search === '?fuel-test' && typeof advanceFrames === 'function' && document.querySelector('#scene canvas')");
+  await step();
+  await click('menu-settings');
+  await click('accessible-palette');
+  await click('settings-back');
+  await click('start-game');
+  await click('enter-night');
+  await step();
+  assert.ok((await label('interact-text')).startsWith('Châm dầu'));
+  assert.equal(await label('oil-warning'), '1 đèn sắp cạn dầu');
+  assert.deepEqual(await evaluate(`[
+    getComputedStyle(document.querySelector('#clock')).color,
+    getComputedStyle(document.querySelector('#oil-warning')).color,
+    getComputedStyle(document.querySelector('#oil-warning'), '::before').content.includes('⚠')
+  ]`), ['rgb(255, 255, 255)', 'rgb(255, 255, 255)', true]);
+  await screenShot('low-oil');
+  await press('KeyE');
+  await step();
+  assert.equal(await evaluate(visible('oil-warning')), false);
+  assert.match(await label('announcement'), /Đã châm dầu/);
+  assert.equal(await label('carried'), '2 / 10');
   assert.deepEqual(errors, []);
   console.log('PASS Scenario UI chain through the three islands, lantern hints, wind warning, Bùa Gió, the Bình Minh screen and retry after defeat');
+  console.log('PASS No early victory, capacity HUD, refuel interaction, persistent palette and white warning icons');
   console.log('PASS No JavaScript or WebGL errors');
 } finally {
   socket?.close();

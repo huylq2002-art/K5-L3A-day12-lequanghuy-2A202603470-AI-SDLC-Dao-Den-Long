@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { TUNING as T } from '../core/config.ts';
+import { displayFuel, lanternCost, lowFuel, providesSafety } from '../core/lanterns.js';
 import { groundHeight } from '../core/maps.js';
 import { glow, groundDisc, makeDrifter, makeGlowTexture, makeLantern, makeMote, makePlayer, makeShade, makeWindCharm } from './models.js';
 import { PALETTE as P } from './palette.js';
@@ -7,8 +8,7 @@ import { addWorld } from './world.js';
 
 const AMBER = new THREE.Color(P.lantern);
 const OFF = new THREE.Color(P.lanternOff);
-const PURPLE = new THREE.Color(P.shadeGlow);
-const STUN = new THREE.Color(P.shadeStun);
+const SHADE_COLORS = [new THREE.Color(P.shadeGlow), new THREE.Color(P.shadeAccessible)];
 
 function place(object, [x, y, z], height = 0) {
   object.position.set(x, y + height, -z);
@@ -83,7 +83,7 @@ export function createView(container) {
   let height = 0;
 
   let currentWorld;
-  function render(state, orbit, time) {
+  function render(state, orbit, time, accessible = false) {
     if (currentWorld?.id !== state.night) {
       if (currentWorld) currentWorld.root.visible = false;
       if (!worlds.has(state.night)) worlds.set(state.night, { id: state.night, ...addWorld(scene, texture, state.map) });
@@ -133,19 +133,32 @@ export function createView(container) {
       model.root.visible = Boolean(lantern);
       model.light.visible = Boolean(lantern?.lit);
       if (!lantern) continue;
-      const filling = lantern.deposited / T.lantern_cost;
-      const flicker = 0.95 + Math.sin(time * 3 + Number(lantern.id[1])) * 0.05;
+      const fuel = displayFuel(lantern.fuelUnits) / T.fuel_max;
+      const flicker = lowFuel(lantern) ? 0.65 + 0.35 * Math.cos(time * Math.PI * 2) : 1;
       place(model.root, lantern.pos);
       model.root.rotation.y = Math.atan2(-lantern.pos[0], -lantern.pos[2]);
       if (lantern.lit) lit++;
       model.paper.color.copy(lantern.lit ? AMBER : OFF);
+      model.shell.scale.y = lantern.lit ? 1 : 0.8;
+      model.tears.visible = !lantern.lit;
       model.core.visible = lantern.lit;
       model.paper.emissiveIntensity = lantern.lit ? 0.32 * flicker : 0;
-      model.halo.scale.setScalar(lantern.lit ? 7.7 * flicker : 2.2 + filling);
-      model.halo.material.opacity = lantern.lit ? 0.92 : 0.48 + filling * 0.14;
-      model.beacon.material.opacity = lantern.lit ? 0.83 : 0.41 + 0.14 * flicker;
+      model.halo.visible = lantern.lit;
+      model.halo.scale.setScalar(7.7 * flicker);
+      model.halo.material.opacity = 0.92 * flicker;
+      model.beacon.material.opacity = lantern.lit ? 0 : 0.38 + 0.14 * lantern.deposited / lanternCost(lantern.everLit);
       model.light.intensity = lantern.lit ? 64 * flicker : 0;
-      model.safe.visible = model.warmth.visible = lantern.lit;
+      model.safe.visible = providesSafety(lantern);
+      model.warmth.visible = lantern.lit;
+      model.warmth.scale.setScalar(model.safe.visible ? T.safe_radius : T.safe_radius / 2);
+      model.warmth.material.opacity = 0.085 * flicker;
+      model.fuelBar.visible = lantern.lit;
+      if (lantern.lit) {
+        model.fuelBar.lookAt(camera.position);
+        model.fuelFill.scale.x = Math.max(0.001, fuel * 1.2);
+        model.fuelFill.position.x = (fuel - 1) * 0.6;
+        model.fuelFill.material.opacity = flicker;
+      }
     }
     ambient.intensity = 0.15 + 0.55 * lit / state.lanterns.length;
 
@@ -156,16 +169,18 @@ export function createView(container) {
       const fade = mote.ttl === null ? 1 : Math.min(1, mote.ttl / 90);
       halo.material.opacity = (0.57 + Math.sin(phase + time * 2.5) * 0.23) * fade;
     });
-    syncObjects(scene, shades, state.shades, () => makeShade(texture), ({ root, arms, aura, setStunned }, shade) => {
+    syncObjects(scene, shades, state.shades, () => makeShade(texture), ({ root, arms, aura, style }, shade) => {
       const stunned = shade.state === 'stunned';
+      const draining = shade.state === 'drain';
+      const focus = draining ? state.lanterns.find(lamp => lamp.id === shade.targetLanternId)?.pos : null;
       place(root, shade.pos, 0.14 + Math.sin(time * (stunned ? 2 : 5) + shade.pos[2]) * 0.12);
-      root.rotation.y = -Math.atan2(x - shade.pos[0], z - shade.pos[2]);
+      root.rotation.y = -Math.atan2((focus?.[0] ?? x) - shade.pos[0], (focus?.[2] ?? z) - shade.pos[2]);
       root.rotation.z = stunned ? Math.sin(time * 7) * 0.23 : 0;
       arms.forEach((arm, i) => { arm.rotation.x = Math.sin(time * 5 + i * 0.9) * 0.30; });
-      setStunned(stunned);
+      style(stunned, accessible);
       root.scale.setScalar(shade.state === 'spawning' ? 0.48 : 1);
-      aura.material.color.copy(stunned ? STUN : PURPLE);
-      aura.material.opacity = stunned ? 0.64 : 0.34;
+      aura.material.color.copy(SHADE_COLORS[Number(accessible)]);
+      aura.material.opacity = stunned ? 0.46 : draining ? 0.68 : 0.34;
     });
     syncObjects(scene, drifters, state.drifters, () => makeDrifter(texture), ({ root, aura, ribbon }, drifter) => {
       root.visible = drifter.state !== 'removed';

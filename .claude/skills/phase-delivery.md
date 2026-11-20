@@ -1,7 +1,7 @@
-# Kiểm tra trước khi bàn giao Phase 2
+# Kiểm tra trước khi bàn giao Phase 3
 
 - Chạy `npm ci`, `npm test` và `npm run build` với Node phiên bản được hỗ trợ.
-- Kiểm tra menu → giới thiệu → chơi → kết quả → đêm sau → Bình Minh. Thử Esc/P, chơi lại đêm, về menu và việc lưu cài đặt qua lần tải trang. Kiểm tra cả ba bản đồ, HUD, mũi chỉ đèn, cảnh báo gió, âm thanh và hiệu ứng lướt.
+- Kiểm tra hết giờ với đủ hoặc thiếu đèn, cùng luồng qua ba đêm. Trong trình duyệt thử châm dầu, bộ đếm sức chứa, thanh dầu nhấp nháy, hình đèn tắt xẹp và rách, cùng lưu bảng màu dễ phân biệt qua lần tải trang.
 - Đo FPS trung bình ở viewport 1280×720 trên bản build thường. Ghi trình duyệt, trình dựng WebGL, kích thước render và thời lượng lấy mẫu.
-- Làm theo `contract-verifier.md`. Lưu log test, ba replay và lệnh tái tạo vào `docs/proof/phase-2/`. Giữ bằng chứng Phase 1 làm mốc hồi quy.
-- Đối chiếu spec, README, CHANGELOG và ghi chép giả định. Đưa cập nhật AGENTS và kỹ năng vào commit Phase 2 để có lịch sử.
+- Làm theo `contract-verifier.md`. Lưu log test và replay mẫu vào `docs/proof/phase-3/`. Giữ bằng chứng Phase 1–2 làm mốc hồi quy.
+- Đối chiếu ADR, nhật ký triển khai, README và Breaking Changes trong CHANGELOG.

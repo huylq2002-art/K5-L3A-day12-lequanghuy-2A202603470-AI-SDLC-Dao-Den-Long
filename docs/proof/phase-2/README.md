@@ -1,5 +1,7 @@
 # Bằng chứng Phase 2
 
+Tái tạo các lệnh bên dưới từ tag `phase-2` với Test Contract v1.1.
+
 | Tệp | Nội dung |
 | --- | --- |
 | `test.log` | Toàn bộ `npm test` trên Windows với Node.js 24.16.0. Cùng bộ test đạt với Node.js 22.18.0. |

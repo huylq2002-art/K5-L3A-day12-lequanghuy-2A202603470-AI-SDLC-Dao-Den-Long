@@ -1,0 +1,7 @@
+Chrome/157.0.8103.80 | Node v24.16.0 | win32
+ANGLE (Intel, Intel(R) UHD Graphics (0x00009BC4) Direct3D11 vs_5_0 ps_5_0, D3D11)
+PASS Production WebGL 2, menu, intro, pause/resume, restart, audio and persisted settings
+Production frames at 1280x720, 1x DPR over 4.5 s: 143.8 FPS
+PASS Scenario UI chain through the three islands, lantern hints, wind warning, Bùa Gió, the Bình Minh screen and retry after defeat
+PASS No early victory, capacity HUD, refuel interaction, persistent palette and white warning icons
+PASS No JavaScript or WebGL errors

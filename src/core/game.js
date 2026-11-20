@@ -1,7 +1,8 @@
 import { TUNING as T, toTicks } from './config.ts';
+import { createLantern, decrementFuel, displayFuel, nearestLantern, providesSafety, requiredLit, serviceLantern } from './lanterns.js';
 import { NIGHTS } from './maps.js';
-import { byId, distanceXZ, seededRandom } from './math.js';
-import { createPlayer, decrementPlayer, movePlayer } from './player.js';
+import { byId, seededRandom } from './math.js';
+import { capacityFor, createPlayer, decrementPlayer, movePlayer } from './player.js';
 import {
   createCharms, createDrifter, createMotes, decrementPopulation, ids, moveDrifters,
   pickItems, pulseDrifters, spawnDrifter, spawnMote, stealFromPlayer, updateWind,
@@ -23,11 +24,7 @@ export function createGame(seed = 1, scenario = {}, night = 1) {
     previousDash: false, previousPause: false,
     nextMoteId: ids('M', scenario.motes), nextShadeId: ids('S', scenario.shades), nextDrifterId: ids('D', scenario.drifters),
     player: createPlayer(map, scenario.player),
-    lanterns: map.lanterns.map(({ id, pos }) => {
-      const override = scenario.lanterns?.find(lamp => lamp.id === id);
-      const deposited = override?.deposited ?? 0;
-      return { id, pos: [...(override?.pos ?? pos)], deposited, lit: override?.lit ?? deposited === T.lantern_cost };
-    }),
+    lanterns: map.lanterns.map(lamp => createLantern(lamp, scenario.lanterns?.find(override => override.id === lamp.id))),
     motes: [], shades: [], drifters: [], charms: createCharms(map, scenario.charms),
   };
   createMotes(state, scenario.motes);
@@ -41,58 +38,34 @@ export function nightStart(state) {
 }
 
 export function nearestUnlitLantern(state, radius = T.interact_radius) {
-  let nearest;
-  let best = Infinity;
-  for (const lamp of state.lanterns) {
-    if (lamp.lit) continue;
-    const distance = distanceXZ(lamp.pos, state.player.pos);
-    if (distance <= radius && (!nearest || distance < best || (distance === best && byId(lamp, nearest) < 0))) {
-      nearest = lamp;
-      best = distance;
-    }
-  }
-  return nearest;
+  return nearestLantern(state.lanterns, state.player.pos, radius, lamp => !lamp.lit);
 }
 
-function deposit(state, emit) {
-  const { player } = state;
-  if (player.falling) return;
-  const lamp = nearestUnlitLantern(state);
-  if (!lamp) return;
-  const amount = Math.min(player.carried, T.lantern_cost - lamp.deposited);
-  if (amount > 0) {
-    player.carried -= amount;
-    lamp.deposited += amount;
-    state.score += amount * T.score_mote;
-    emit('deposit', { lantern_id: lamp.id, amount, deposited: lamp.deposited });
-  }
-  if (lamp.deposited === T.lantern_cost) {
-    lamp.lit = true;
-    state.score += T.score_lantern;
-    emit('lantern_lit', { lantern_id: lamp.id });
-  }
-}
-
-function pulse(state, emit) {
+function pulse(state, drainingBeforeTick, emit) {
   const { player } = state;
   if (player.falling || player.pulseCd || player.carried < T.pulse_cost) return;
   player.carried -= T.pulse_cost;
   player.pulseCd = toTicks(T.pulse_cooldown_s);
   const [x, y, z] = player.pos;
   const inPulse = pos => Math.hypot(x - pos[0], y + T.pulse_center_height_m - pos[1], z - pos[2]) <= T.pulse_radius;
-  emit('pulse', { stunned_ids: pulseShades(state, inPulse) });
+  emit('pulse', { stunned_ids: pulseShades(state, inPulse, drainingBeforeTick) });
   pulseDrifters(state, inPulse, emit);
 }
 
 function finish(state, emit) {
-  if (!state.player.flames) state.reason = 'no_flames';
-  else if (state.lanterns.every(lamp => lamp.lit)) state.reason = 'all_lit';
-  else if (!state.timeLeft) state.reason = 'dawn';
-  if (!state.reason) return;
-  state.state = state.reason === 'all_lit' ? 'won' : 'lost';
-  if (state.state === 'won') {
-    state.score += Math.floor(state.timeLeft) * T.score_win_second + state.player.flames * T.score_win_flame;
+  if (!state.player.flames) {
+    state.reason = 'no_flames';
+  } else if (!state.timeLeft) {
+    const lit = state.lanterns.filter(lamp => lamp.lit);
+    const survived = lit.length >= requiredLit(state.lanterns.length);
+    state.reason = survived ? 'dawn_survived' : 'dawn';
+    if (survived) {
+      state.score += state.player.flames * T.score_win_flame;
+      for (const lamp of lit) state.score += T.score_win_lantern + Math.floor(lamp.fuelUnits / T.tick_hz);
+    }
   }
+  if (!state.reason) return;
+  state.state = state.reason === 'dawn_survived' ? 'won' : 'lost';
   emit('game_over', { result: state.state, reason: state.reason });
 }
 
@@ -112,6 +85,7 @@ export function stepGame(state, input = {}) {
     emit(state.state === 'paused' ? 'paused' : 'resumed', {});
   }
   if (state.state === 'paused') return events;
+  const drainingBeforeTick = input.pulse ? new Set(state.shades.filter(shade => shade.state === 'drain')) : null;
 
   // 2. Clock and countdowns.
   state.simTick++;
@@ -120,14 +94,15 @@ export function stepGame(state, input = {}) {
   decrementShades(state);
   decrementPopulation(state);
   updateWind(state);
+  decrementFuel(state, emit);
 
   if (state.player.flames > 0) {
     movePlayer(state.player, state.map, state.wind, input, dashPressed, emit); // 3
     pickItems(state, emit); // 4
-    if (input.interact) deposit(state, emit); // 5
-    const lamps = state.lanterns.filter(lamp => lamp.lit);
+    if (input.interact) serviceLantern(state, emit); // 5
+    const lamps = state.lanterns.filter(providesSafety);
     updateSafeZones(state, lamps); // 6
-    if (input.pulse) pulse(state, emit); // 7
+    if (input.pulse) pulse(state, drainingBeforeTick, emit); // 7
     moveShades(state, lamps); // 8
     moveDrifters(state);
     stealFromPlayer(state, emit); // 9
@@ -152,10 +127,13 @@ export function makeSnapshot(state) {
     wind: { active: wind.active, dir_deg: rounded(wind.radians * 180 / Math.PI) },
     player: {
       pos: vector(player.pos), vel: vector([player.vel[0] + player.windDrift[0], player.vel[1], player.vel[2] + player.windDrift[1]]), grounded: player.grounded,
-      flames: player.flames, carried: player.carried, invuln: player.invuln > 0,
+      flames: player.flames, carried: player.carried, capacity: capacityFor(player.successfulLights), invuln: player.invuln > 0,
       dash_cd_s: seconds(player.charm ? 0 : player.dashCd), pulse_cd_s: seconds(player.pulseCd), charm_s: seconds(player.charm),
     },
-    lanterns: state.lanterns.map(({ id, pos, lit, deposited }) => ({ id, pos: vector(pos), lit, deposited })),
+    lanterns: state.lanterns.map(lamp => ({
+      id: lamp.id, pos: vector(lamp.pos), lit: lamp.lit, deposited: lamp.deposited, fuel: displayFuel(lamp.fuelUnits),
+      ever_lit: lamp.everLit, relit_count: lamp.relitCount,
+    })),
     shades: state.shades.map(({ id, pos, state: kind }) => ({ id, pos: vector(pos), state: kind })),
     motes_active: state.motes.length,
     motes: state.motes.map(({ id, pos, kind, ttl }) => ({ id, pos: vector(pos), kind, ttl_s: ttl === null ? null : seconds(ttl) })),

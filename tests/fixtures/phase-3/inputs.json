@@ -1,0 +1,5 @@
+[
+  { "tick": 0, "interact": true },
+  { "tick": 1, "z": -1 },
+  { "tick": 20, "z": 0, "interact": true }
+]

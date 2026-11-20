@@ -4,6 +4,10 @@ import { directionXZ, inReach, rotateMove } from './math.js';
 
 const EPSILON = 1e-7;
 
+export function capacityFor(successfulLights) {
+  return Math.min(T.capacity_max, T.max_carried + T.capacity_increment * successfulLights);
+}
+
 export function createPlayer(map, override = {}) {
   const pos = [...(override.pos ?? map.start)];
   const floor = groundHeight(map, pos[0], pos[2]);
@@ -11,6 +15,7 @@ export function createPlayer(map, override = {}) {
     pos, vel: [0, 0, 0], windDrift: [0, 0], facing: 0,
     grounded: Math.abs(floor - pos[1]) < EPSILON || (floor > 0 && Math.abs(pos[1]) < EPSILON),
     carried: override.carried ?? 0,
+    successfulLights: override.successful_lights ?? 0,
     flames: override.flames ?? T.starting_flames,
     invuln: override.invuln_ticks ?? 0,
     dashCd: override.dash_cd_ticks ?? 0,

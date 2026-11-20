@@ -1,8 +1,8 @@
 export const TUNING = Object.freeze({
   tick_hz: 60,
-  night1_duration_s: 300,
-  night2_duration_s: 330,
-  night3_duration_s: 360,
+  night1_duration_s: 240,
+  night2_duration_s: 270,
+  night3_duration_s: 300,
   island_radius: 40,
   night2_island_radius: 28,
   night3_island_radius: 45,
@@ -17,12 +17,20 @@ export const TUNING = Object.freeze({
   pickup_radius: 1,
   pickup_height_m: 1.5,
   max_carried: 10,
+  capacity_increment: 2,
+  capacity_max: 20,
   starting_motes: 20,
   max_motes: 30,
   mote_spawn_interval_ticks: 240,
   dropped_mote_ttl_ticks: 480,
   interact_radius: 2,
   lantern_cost: 10,
+  relight_cost: 5,
+  fuel_max: 100,
+  fuel_decay_per_s: 1,
+  fuel_per_mote: 10,
+  low_fuel_threshold: 30,
+  win_ratio: 0.6,
   safe_radius: 6,
   shade_eject_ticks: 30,
   shade_speed_mps: 4,
@@ -42,6 +50,9 @@ export const TUNING = Object.freeze({
   night3_max_shades: 10,
   shade_recoil_m: 2,
   shade_recoil_ticks: 60,
+  drain_per_s: 5,
+  drain_radius: 2,
+  drain_interrupt_radius: 6,
   invuln_s: 1.5,
   hit_drop_ratio: 0.5,
   hit_drop_min_radius: 1.5,
@@ -77,15 +88,17 @@ export const TUNING = Object.freeze({
   charm_duration_ticks: 600,
   charm_respawn_ticks: 2700,
   charm_speed_mps: 7.2,
-  score_mote: 10,
+  score_mote: 5,
   score_lantern: 100,
+  score_relight: 40,
   score_pulse_shade: 5,
-  score_win_second: 2,
+  score_pulse_drain: 15,
+  score_win_lantern: 50,
   score_win_flame: 50,
 });
 
 export const TICK_S = 1 / TUNING.tick_hz;
 export const toTicks = seconds => Math.round(seconds * TUNING.tick_hz);
 
-export const SHADE_STATES = Object.freeze(['spawning', 'wander', 'chase', 'recoil', 'stunned']);
+export const SHADE_STATES = Object.freeze(['spawning', 'wander', 'chase', 'recoil', 'stunned', 'drain']);
 export const DRIFTER_STATES = Object.freeze(['idle', 'chase', 'flee', 'removed']);

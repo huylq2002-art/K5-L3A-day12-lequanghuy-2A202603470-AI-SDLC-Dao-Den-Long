@@ -58,6 +58,8 @@ export function gameAudio(initialLevel) {
       switch (name) {
         case 'mote_picked': tone(660 + data.carried % 5 * 66, 0, 0.14); break;
         case 'deposit': tone(392, 0, 0.22, 'triangle'); break;
+        case 'refuel': tone(470, 0, 0.24, 'sine', 545); break;
+        case 'lantern_out': tone(210, 0, 0.35, 'triangle', 125); break;
         case 'lantern_lit': [523, 659, 784].forEach((note, i) => tone(note, i * 0.095, 0.45)); break;
         case 'pulse': tone(128, 0, 0.45, 'triangle', 55); break;
         case 'jump': tone(275, 0, 0.19, 'sine', 440); break;

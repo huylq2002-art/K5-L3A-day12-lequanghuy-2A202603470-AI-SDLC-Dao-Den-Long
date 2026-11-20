@@ -13,15 +13,15 @@ const near = (a, b, epsilon = 1e-7) => assert.ok(Math.abs(a - b) <= epsilon, `${
 const play = (state, count, input = {}) => Array.from({ length: count }, () => stepGame(state, input)).flat();
 const names = events => events.map(event => event.name);
 
-test('v1.1 tuning, night layouts, spawn point counts and TICKET-02 constants', () => {
+test('v1.2 tuning, night layouts and preserved TICKET-02 movement constants', () => {
   const contract = JSON.parse(readFileSync(new URL('../game.contract.json', import.meta.url), 'utf8'));
-  assert.equal(contract.contract_version, '1.1');
+  assert.equal(contract.contract_version, '1.2');
   assert.equal(contract.team, '2A202603470-lequanghuy');
   assert.deepEqual(contract.tuning, T);
   assert.equal(T.tick_hz, 60);
   assert.deepEqual([T.move_speed_mps, T.jump_speed_mps, T.gravity_mps2, T.dash_speed, T.dash_duration_s, T.dash_cooldown_s], [6, 7, -20, 14, 0.2, 1.5]);
   assert.deepEqual(Object.values(NIGHTS).map(map => [map.duration, map.lanterns.length, map.motePoints.length, map.shadePoints.length, map.shadeInterval, map.maxShades]), [
-    [300, 5, 24, 12, 480, 6], [330, 6, 24, 16, 420, 8], [360, 7, 30, 16, 360, 10],
+    [240, 5, 24, 12, 480, 6], [270, 6, 24, 16, 420, 8], [300, 7, 30, 16, 360, 10],
   ]);
   assert.deepEqual(NIGHTS[1].lanterns[1].pos, [23.8, 0, 7.7]);
   near(NIGHTS[1].motePoints[9][0], 33 * Math.cos(Math.PI / 8));
@@ -148,7 +148,8 @@ test('pickup uses horizontal plus vertical bounds and cap, then ties deposit to 
   const events = stepGame(state, { interact: true });
   assert.deepEqual(names(events), ['mote_picked', 'deposit', 'lantern_lit']);
   assert.deepEqual(events[1].data, { lantern_id: 'L1', amount: 2, deposited: 10 });
-  assert.equal(state.score, 120);
+  assert.deepEqual(events[2].data, { lantern_id: 'L1', relight: false });
+  assert.equal(state.score, 110);
   assert.equal(state.motes.length, 2);
   assert.equal(state.lanterns[1].deposited, 0);
 });
@@ -277,14 +278,19 @@ test('wind warning, active duration and displacement are deterministic; paused c
   near(repeat.wind.radians, state.wind.radians);
 });
 
-test('same tick priority is no flames before last lamp before dawn, and campaign credits each win once', () => {
+test('last-tick changes count at dawn, no_flames takes priority and campaign credits each win once', () => {
   const scenario = { player: { carried: 10, flames: 1 }, time_left_s: 1 / 60,
-    lanterns: NIGHTS[1].lanterns.map(({ id }) => ({ id, pos: [0, 0, 0], lit: id !== 'L1' })),
+    lanterns: [
+      { id: 'L1', pos: [0, 0, 0] },
+      { id: 'L2', lit: true, fuel: 40 },
+      { id: 'L3', lit: true, fuel: 2 },
+    ],
   };
   const win = game(scenario);
   assert.deepEqual(names(stepGame(win, { interact: true })), ['deposit', 'lantern_lit', 'game_over']);
   assert.equal(win.state, 'won');
-  assert.equal(win.score, 250);
+  assert.equal(win.reason, 'dawn_survived');
+  assert.equal(win.score, 490);
   const noFlames = game({ ...scenario, player: { flames: 0 } });
   assert.equal(stepGame(noFlames, { interact: true })[0].data.reason, 'no_flames');
   const dawn = game({ time_left_s: 1 / 60 });
@@ -293,11 +299,14 @@ test('same tick priority is no flames before last lamp before dawn, and campaign
   campaign.game = win;
   recordResult(campaign);
   recordResult(campaign);
-  assert.equal(campaign.total, 250);
+  assert.equal(campaign.total, 490);
   assert.equal(advanceNight(campaign), true);
-  assert.equal(startNight(campaign).player.flames, 3);
+  const next = startNight(campaign);
+  assert.equal(next.player.flames, 3);
+  assert.equal(next.player.successfulLights, 0);
+  assert.equal(makeSnapshot(next).player.capacity, 10);
   campaign.game = dawn;
   recordResult(campaign);
-  assert.equal(campaign.total, 250);
+  assert.equal(campaign.total, 490);
   assert.equal(advanceNight(campaign), false);
 });

@@ -19,10 +19,10 @@
             <strong id="flames" class="flames" aria-label="3 ngọn lửa"></strong>
           </section>
           <section id="timer" class="stat panel timer" aria-label="Thời gian còn lại">
-            <span>Đến bình minh</span><strong id="clock">05:00</strong>
+            <span>Đến bình minh</span><strong id="clock">04:00</strong>
           </section>
           <section class="panel progress" aria-label="Tiến độ">
-            <div class="stat"><span>Đèn lồng</span><strong id="lit-count">0 / 5</strong></div>
+            <div class="stat"><span>Đèn lồng</span><strong id="lit-count">0 / 5</strong><small id="dawn-target">Bình minh cần 3</small></div>
             <div class="stat"><span>Điểm</span><strong id="score">0</strong></div>
             <button type="button" id="pause" aria-label="Tạm dừng" title="Tạm dừng (Esc / P)">Ⅱ</button>
           </section>
@@ -35,6 +35,7 @@
             <p><span>▲</span> Mây <span>◆</span> Đèn lồng</p>
           </aside>
           <div class="pack">
+            <p id="oil-warning" class="panel oil-warning" role="status" hidden></p>
             <p id="announcement" class="announcement" role="status"></p>
             <p id="interact-hint" class="panel hint" hidden><kbd>E</kbd><span id="interact-text"></span></p>
             <div class="panel inventory">
@@ -80,6 +81,9 @@
           <input type="range" id="volume" min="0" max="100" step="1">
           <label class="setting" for="sensitivity"><span>Độ nhạy chuột</span><output id="sensitivity-value"></output></label>
           <input type="range" id="sensitivity" min="25" max="200" step="1">
+          <label class="setting palette-setting" for="accessible-palette">
+            <span>Bảng màu dễ phân biệt</span><input type="checkbox" id="accessible-palette">
+          </label>
           <div class="screen-actions"><button class="primary" id="settings-back">Quay lại</button></div>
         </section>
         <section id="result-screen" class="sheet compact" aria-labelledby="result-title" hidden>
